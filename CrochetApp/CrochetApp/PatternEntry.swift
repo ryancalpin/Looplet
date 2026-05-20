@@ -25,6 +25,9 @@ struct PatternEntry: Codable, Identifiable {
         self.autoResetStitch = true
     }
 
+    /// Returns a security-scoped URL for the bookmarked file.
+    /// Caller must call `url.startAccessingSecurityScopedResource()` before any file I/O
+    /// and `url.stopAccessingSecurityScopedResource()` when done.
     func resolveURL() -> URL? {
         var isStale = false
         guard let url = try? URL(
