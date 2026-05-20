@@ -12,8 +12,8 @@ struct CounterBarView: View {
                 count: store.rowCount,
                 color: .pink,
                 accentColor: Color(red: 0.71, green: 0.33, blue: 0.49),
-                onDecrement: { store.decrementRow() },
-                onIncrement: { store.incrementRow() }
+                onDecrement: { withAnimation { store.decrementRow() } },
+                onIncrement: { withAnimation { store.incrementRow() } }
             )
 
             // Stitch counter pill
@@ -22,8 +22,8 @@ struct CounterBarView: View {
                 count: store.stitchCount,
                 color: Color.purple,
                 accentColor: Color(red: 0.49, green: 0.30, blue: 0.80),
-                onDecrement: { store.decrementStitch() },
-                onIncrement: { store.incrementStitch() }
+                onDecrement: { withAnimation { store.decrementStitch() } },
+                onIncrement: { withAnimation { store.incrementStitch() } }
             )
 
             Divider()
@@ -35,11 +35,11 @@ struct CounterBarView: View {
                     .toggleStyle(SwitchToggleStyle())
                     .labelsHidden()
                     .scaleEffect(0.75)
-                    .onChange(of: store.autoResetStitch) { _ in
+                    .onChange(of: store.autoResetStitch) { newValue in
                         store.library?.updateActiveCounters(
                             row: store.rowCount,
                             stitch: store.stitchCount,
-                            autoReset: store.autoResetStitch
+                            autoReset: newValue
                         )
                     }
                 Text("Auto-reset")
@@ -129,7 +129,7 @@ struct CounterBarView: View {
             .buttonStyle(.plain)
         }
         .background(color.opacity(0.08))
-        .cornerRadius(10)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
         .overlay(
             RoundedRectangle(cornerRadius: 10)
                 .strokeBorder(color.opacity(0.25), lineWidth: 1.5)
