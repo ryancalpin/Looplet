@@ -81,6 +81,18 @@ class PatternLibrary: ObservableObject {
         save()
     }
 
+    /// Called from AnnotationBridge when JS saves or deletes a note.
+    func updateNote(index: Int, text: String?) {
+        guard let id = activeEntryID,
+              let i = entries.firstIndex(where: { $0.id == id }) else { return }
+        if let text = text, !text.isEmpty {
+            entries[i].annotations[index] = text
+        } else {
+            entries[i].annotations.removeValue(forKey: index)
+        }
+        save()
+    }
+
     // MARK: - Persistence
 
     func save() {

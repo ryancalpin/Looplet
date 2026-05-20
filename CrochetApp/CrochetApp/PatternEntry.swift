@@ -10,6 +10,15 @@ struct PatternEntry: Codable, Identifiable {
     var stitchCount: Int
     var autoResetStitch: Bool
 
+    // MARK: - Goals
+    var rowGoal: Int?        // nil = no goal, no progress bar
+    var stitchGoal: Int?     // nil = no auto-advance
+
+    // MARK: - Annotations
+    // Key: paragraph index (0-based order of <p> and <li> in rendered HTML)
+    // Value: note text
+    var annotations: [Int: String]
+
     init(url: URL) throws {
         self.id = UUID()
         self.displayName = url.deletingPathExtension().lastPathComponent
@@ -23,6 +32,9 @@ struct PatternEntry: Codable, Identifiable {
         self.rowCount = 0
         self.stitchCount = 0
         self.autoResetStitch = true
+        self.rowGoal = nil
+        self.stitchGoal = nil
+        self.annotations = [:]
     }
 
     /// Returns a security-scoped URL for the bookmarked file.
