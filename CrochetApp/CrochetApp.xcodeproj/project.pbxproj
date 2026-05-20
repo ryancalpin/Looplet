@@ -14,6 +14,7 @@
 		AA000001000000000000005A /* CounterStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000005B /* CounterStore.swift */; };
 		AA000001000000000000006A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000006B /* Assets.xcassets */; };
 		BB1234567890ABCDEF654321 /* PatternEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB1234567890ABCDEF123456 /* PatternEntry.swift */; };
+		CC9876543210FEDCBA654321 /* PatternLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC9876543210FEDCBA123456 /* PatternLibrary.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -26,6 +27,7 @@
 		AA000001000000000000007B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AA000001000000000000008B /* CrochetApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = CrochetApp.entitlements; sourceTree = "<group>"; };
 		BB1234567890ABCDEF123456 /* PatternEntry.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PatternEntry.swift; sourceTree = "<group>"; };
+		CC9876543210FEDCBA123456 /* PatternLibrary.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PatternLibrary.swift; sourceTree = "<group>"; };
 		AA00000100000000000000AB /* CrochetApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CrochetApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -49,6 +51,7 @@
 				AA000001000000000000004B /* MarkdownView.swift */,
 				AA000001000000000000005B /* CounterStore.swift */,
 				BB1234567890ABCDEF123456 /* PatternEntry.swift */,
+				CC9876543210FEDCBA123456 /* PatternLibrary.swift */,
 				AA000001000000000000006B /* Assets.xcassets */,
 				AA000001000000000000007B /* Info.plist */,
 				AA000001000000000000008B /* CrochetApp.entitlements */,
@@ -147,6 +150,7 @@
 				AA000001000000000000004A /* MarkdownView.swift in Sources */,
 				AA000001000000000000005A /* CounterStore.swift in Sources */,
 				BB1234567890ABCDEF654321 /* PatternEntry.swift in Sources */,
+				CC9876543210FEDCBA654321 /* PatternLibrary.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
