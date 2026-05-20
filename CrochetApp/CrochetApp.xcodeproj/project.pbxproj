@@ -9,7 +9,6 @@
 /* Begin PBXBuildFile section */
 		AA000001000000000000001A /* CrochetAppApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000001B /* CrochetAppApp.swift */; };
 		AA000001000000000000002A /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000002B /* ContentView.swift */; };
-		AA000001000000000000003A /* CounterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000003B /* CounterView.swift */; };
 		AA000001000000000000004A /* MarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000004B /* MarkdownView.swift */; };
 		AA000001000000000000005A /* CounterStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000005B /* CounterStore.swift */; };
 		AA000001000000000000006A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000006B /* Assets.xcassets */; };
@@ -22,7 +21,6 @@
 /* Begin PBXFileReference section */
 		AA000001000000000000001B /* CrochetAppApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrochetAppApp.swift; sourceTree = "<group>"; };
 		AA000001000000000000002B /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		AA000001000000000000003B /* CounterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CounterView.swift; sourceTree = "<group>"; };
 		AA000001000000000000004B /* MarkdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownView.swift; sourceTree = "<group>"; };
 		AA000001000000000000005B /* CounterStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CounterStore.swift; sourceTree = "<group>"; };
 		AA000001000000000000006B /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -51,7 +49,6 @@
 			children = (
 				AA000001000000000000001B /* CrochetAppApp.swift */,
 				AA000001000000000000002B /* ContentView.swift */,
-				AA000001000000000000003B /* CounterView.swift */,
 				AA000001000000000000004B /* MarkdownView.swift */,
 				AA000001000000000000005B /* CounterStore.swift */,
 				BB1234567890ABCDEF123456 /* PatternEntry.swift */,
@@ -152,7 +149,6 @@
 			files = (
 				AA000001000000000000001A /* CrochetAppApp.swift in Sources */,
 				AA000001000000000000002A /* ContentView.swift in Sources */,
-				AA000001000000000000003A /* CounterView.swift in Sources */,
 				AA000001000000000000004A /* MarkdownView.swift in Sources */,
 				AA000001000000000000005A /* CounterStore.swift in Sources */,
 				BB1234567890ABCDEF654321 /* PatternEntry.swift in Sources */,
