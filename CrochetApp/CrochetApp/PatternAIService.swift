@@ -229,6 +229,13 @@ final class PatternAIService: ObservableObject {
         isLoadingConversion = true
         defer { isLoadingConversion = false }
 
+        let maxChars = 6000
+        guard patternText.count <= maxChars else {
+            let result = "Pattern is too long for full conversion (\(patternText.count) characters). Try a shorter pattern or paste just the stitch instructions."
+            conversionCache[patternID] = result
+            return result
+        }
+
         let session = LanguageModelSession()
         let prompt = """
         You are a crochet expert. The following pattern uses crochet terminology.
@@ -256,12 +263,15 @@ final class PatternAIService: ObservableObject {
 
         let session = LanguageModelSession()
         let prompt = """
-        You are a crochet expert and stitch math checker. Read the following pattern row by row.
-        For each row where the resulting stitch count does NOT match the expected count from the prior row, \
-        output one line in the format: "Row N: explanation of the discrepancy."
-        If you cannot parse a row's math, output: "Row N: Could not verify — pattern too complex to parse automatically."
-        If all rows check out, output: "All rows verified."
-        Do not add any other text.
+        You are a crochet expert and stitch math checker. Read the following pattern row by row and verify stitch counts.
+        Rules:
+        - If a row's stitch count is correct, skip it silently.
+        - If a row's stitch count does NOT match the expected count from the prior row, output one line like:
+          "Row 3: Expected 18 stitches (6 sc + 6×2-into-1 increases from Row 2's 12), but instructions produce 15."
+        - If a row's math cannot be parsed (ambiguous instructions, complex stitch combos, etc.), output:
+          "Row 5: Cannot verify — stitch math is ambiguous here."
+        - If every row checks out, output exactly: "All rows verified."
+        Output nothing else — no headers, no explanations outside the rows listed.
 
         Pattern:
         \(patternText)
@@ -289,8 +299,6 @@ final class PatternAIService: ObservableObject {
                         issues.append(StitchCountResult.RowIssue(rowNumber: rowNum, description: description))
                     }
                 }
-            } else if issues.isEmpty && line.lowercased().contains("could not verify") {
-                unverifiableNote = line
             }
         }
 

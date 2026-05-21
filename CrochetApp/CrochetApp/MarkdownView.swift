@@ -340,6 +340,8 @@ struct MarkdownWebView: NSViewRepresentable {
 
     func updateNSView(_ webView: WKWebView, context: Context) {
         context.coordinator.pendingAnnotations = annotations
+        guard htmlContent != context.coordinator.lastLoadedHTML else { return }
+        context.coordinator.lastLoadedHTML = htmlContent
         webView.loadHTMLString(htmlContent, baseURL: nil)
     }
 
@@ -349,6 +351,7 @@ struct MarkdownWebView: NSViewRepresentable {
 
     final class Coordinator: NSObject, WKNavigationDelegate {
         var pendingAnnotations: [Int: String]
+        var lastLoadedHTML: String = ""
 
         init(annotations: [Int: String]) {
             self.pendingAnnotations = annotations
