@@ -6,6 +6,8 @@ struct AIPanelView: View {
     let patternText: String
     @Binding var showAIPanel: Bool
     @Binding var abbreviationDict: [String: String]
+    @Binding var bannerDifficulty: String?
+    @Binding var bannerTotalRows: String?
 
     @StateObject private var service = PatternAIService()
 
@@ -13,18 +15,14 @@ struct AIPanelView: View {
     @State private var abbreviationList: AbbreviationList? = nil
     @State private var materials: MaterialsBreakdown? = nil
     @State private var difficulty: String? = nil
-    @State private var conversion: String? = nil
     @State private var stitchResult: StitchCountResult? = nil
-    @State private var yarnSub: String? = nil
     @State private var timeEstimate: String? = nil
 
     @State private var summaryError: String? = nil
     @State private var abbreviationsError: String? = nil
     @State private var materialsError: String? = nil
     @State private var difficultyError: String? = nil
-    @State private var conversionError: String? = nil
     @State private var stitchError: String? = nil
-    @State private var yarnSubError: String? = nil
     @State private var timeError: String? = nil
 
     var body: some View {
@@ -33,6 +31,11 @@ struct AIPanelView: View {
             Divider()
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
+                    // Q&A is most interactive — keep it at the top
+                    AIFeatureSection(title: "Ask a Question", isLoading: false, onRegenerate: {}) {
+                        PatternQAView(service: service, patternText: patternText)
+                    }
+                    Divider().padding(.horizontal, 12)
                     AIFeatureSection(title: "Summary", isLoading: service.isLoadingSummary, onRegenerate: regenSummary) {
                         if let s = summary { summaryContent(s) }
                         else if let e = summaryError { errorText(e) }
@@ -43,10 +46,6 @@ struct AIPanelView: View {
                         if let a = abbreviationList { abbreviationsContent(a) }
                         else if let e = abbreviationsError { errorText(e) }
                         else { loadingPlaceholder }
-                    }
-                    Divider().padding(.horizontal, 12)
-                    AIFeatureSection(title: "Ask a Question", isLoading: false, onRegenerate: {}) {
-                        PatternQAView(service: service, patternText: patternText)
                     }
                     Divider().padding(.horizontal, 12)
                     AIFeatureSection(title: "Materials", isLoading: service.isLoadingMaterials, onRegenerate: regenMaterials) {
@@ -61,24 +60,9 @@ struct AIPanelView: View {
                         else { loadingPlaceholder }
                     }
                     Divider().padding(.horizontal, 12)
-                    AIFeatureSection(title: "US ↔ UK Conversion", isLoading: service.isLoadingConversion, onRegenerate: regenConversion) {
-                        if let c = conversion {
-                            Text(c).font(.system(size: 11, design: .monospaced))
-                                .fixedSize(horizontal: false, vertical: true)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        } else if let e = conversionError { errorText(e) }
-                        else { loadingPlaceholder }
-                    }
-                    Divider().padding(.horizontal, 12)
                     AIFeatureSection(title: "Stitch Count Verifier", isLoading: service.isLoadingStitchVerifier, onRegenerate: regenStitch) {
                         if let r = stitchResult { stitchVerifierContent(r) }
                         else if let e = stitchError { errorText(e) }
-                        else { loadingPlaceholder }
-                    }
-                    Divider().padding(.horizontal, 12)
-                    AIFeatureSection(title: "Yarn Substitution", isLoading: service.isLoadingYarnSub, onRegenerate: regenYarnSub) {
-                        if let y = yarnSub { Text(y).font(.system(size: 12)).fixedSize(horizontal: false, vertical: true) }
-                        else if let e = yarnSubError { errorText(e) }
                         else { loadingPlaceholder }
                     }
                     Divider().padding(.horizontal, 12)
@@ -123,24 +107,24 @@ struct AIPanelView: View {
 
     private func resetAll() {
         summary = nil; abbreviationList = nil; materials = nil; difficulty = nil
-        conversion = nil; stitchResult = nil; yarnSub = nil; timeEstimate = nil
+        stitchResult = nil; timeEstimate = nil
         summaryError = nil; abbreviationsError = nil; materialsError = nil; difficultyError = nil
-        conversionError = nil; stitchError = nil; yarnSubError = nil; timeError = nil
+        stitchError = nil; timeError = nil
         abbreviationDict = [:]
+        bannerDifficulty = nil
+        bannerTotalRows = nil
     }
 
     private func loadAll() {
         loadSummary(); loadAbbreviations(); loadMaterials(); loadDifficulty()
-        loadConversion(); loadStitchVerifier(); loadYarnSub(); loadTimeEstimate()
+        loadStitchVerifier(); loadTimeEstimate()
     }
 
-    private func regenSummary() { service.clearCache(for: entry.id); summary = nil; summaryError = nil; loadSummary() }
-    private func regenAbbreviations() { service.clearCache(for: entry.id); abbreviationList = nil; abbreviationsError = nil; loadAbbreviations() }
+    private func regenSummary() { service.clearCache(for: entry.id); summary = nil; summaryError = nil; bannerTotalRows = nil; loadSummary() }
+    private func regenAbbreviations() { service.clearCache(for: entry.id); abbreviationList = nil; abbreviationsError = nil; abbreviationDict = [:]; loadAbbreviations() }
     private func regenMaterials() { service.clearCache(for: entry.id); materials = nil; materialsError = nil; loadMaterials() }
-    private func regenDifficulty() { service.clearCache(for: entry.id); difficulty = nil; difficultyError = nil; loadDifficulty() }
-    private func regenConversion() { service.clearCache(for: entry.id); conversion = nil; conversionError = nil; loadConversion() }
+    private func regenDifficulty() { service.clearCache(for: entry.id); difficulty = nil; difficultyError = nil; bannerDifficulty = nil; loadDifficulty() }
     private func regenStitch() { service.clearCache(for: entry.id); stitchResult = nil; stitchError = nil; loadStitchVerifier() }
-    private func regenYarnSub() { service.clearCache(for: entry.id); yarnSub = nil; yarnSubError = nil; loadYarnSub() }
     private func regenTime() { service.clearCache(for: entry.id); timeEstimate = nil; timeError = nil; loadTimeEstimate() }
 
     // MARK: - Content renderers
@@ -185,14 +169,16 @@ struct AIPanelView: View {
     }
 
     private func stitchVerifierContent(_ r: StitchCountResult) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 6) {
             if r.issues.isEmpty {
-                Label("All rows verified", systemImage: "checkmark.circle.fill")
+                Label("All rows verified — stitch counts add up correctly.", systemImage: "checkmark.circle.fill")
                     .foregroundColor(.green).font(.system(size: 12))
             } else {
+                Text("The following rows have stitch count mismatches:")
+                    .font(.system(size: 11)).foregroundColor(.secondary)
                 ForEach(r.issues) { issue in
                     HStack(alignment: .top, spacing: 4) {
-                        Text("⚠")
+                        Image(systemName: "exclamationmark.triangle.fill").foregroundColor(.orange).font(.system(size: 10))
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Row \(issue.rowNumber)").font(.system(size: 11, weight: .semibold))
                             Text(issue.description).font(.system(size: 11)).foregroundColor(.secondary)
@@ -221,8 +207,11 @@ struct AIPanelView: View {
     // MARK: - Load actions
 
     private func loadSummary() {
-        Task { do { summary = try await service.generateSummary(patternID: entry.id, patternText: patternText) }
-        catch { summaryError = error.localizedDescription } }
+        Task { do {
+            let result = try await service.generateSummary(patternID: entry.id, patternText: patternText)
+            summary = result
+            bannerTotalRows = result.totalRows == "Unknown" ? nil : result.totalRows
+        } catch { summaryError = error.localizedDescription } }
     }
     private func loadAbbreviations() {
         Task { do {
@@ -236,20 +225,15 @@ struct AIPanelView: View {
         catch { materialsError = error.localizedDescription } }
     }
     private func loadDifficulty() {
-        Task { do { difficulty = try await service.estimateDifficulty(patternID: entry.id, patternText: patternText) }
-        catch { difficultyError = error.localizedDescription } }
-    }
-    private func loadConversion() {
-        Task { do { conversion = try await service.convertTerminology(patternID: entry.id, patternText: patternText) }
-        catch { conversionError = error.localizedDescription } }
+        Task { do {
+            let result = try await service.estimateDifficulty(patternID: entry.id, patternText: patternText)
+            difficulty = result
+            bannerDifficulty = result
+        } catch { difficultyError = error.localizedDescription } }
     }
     private func loadStitchVerifier() {
         Task { do { stitchResult = try await service.verifyStitchCounts(patternID: entry.id, patternText: patternText) }
         catch { stitchError = error.localizedDescription } }
-    }
-    private func loadYarnSub() {
-        Task { do { yarnSub = try await service.suggestYarnSubstitutions(patternID: entry.id, patternText: patternText) }
-        catch { yarnSubError = error.localizedDescription } }
     }
     private func loadTimeEstimate() {
         Task { do { timeEstimate = try await service.estimateTime(

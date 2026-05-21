@@ -10,6 +10,8 @@ struct ContentView: View {
     @State private var aiPanelWidth: CGFloat = 280
     @State private var abbreviationDict: [String: String] = [:]
     @State private var patternScrollToRow: Int = 0
+    @State private var bannerDifficulty: String? = nil
+    @State private var bannerTotalRows: String? = nil
 
     var body: some View {
         HStack(spacing: 0) {
@@ -30,7 +32,12 @@ struct ContentView: View {
                 )
 
                 if let entry = library.activeEntry {
-                    PatternStatsBannerView(entry: entry, store: store)
+                    PatternStatsBannerView(
+                        entry: entry,
+                        store: store,
+                        aiDifficulty: bannerDifficulty,
+                        aiTotalRows: bannerTotalRows
+                    )
                 }
 
                 HStack(spacing: 0) {
@@ -42,21 +49,26 @@ struct ContentView: View {
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                    if showAIPanel, let entry = library.activeEntry, let text = loadedPatternText {
-                        if #available(macOS 26.0, *) {
-                            resizableDivider
-                            AIPanelView(
-                                entry: entry,
-                                patternText: text,
-                                showAIPanel: $showAIPanel,
-                                abbreviationDict: $abbreviationDict
-                            )
-                            .frame(width: aiPanelWidth)
-                            .transition(.move(edge: .trailing))
-                        }
+                    // Keep AIPanelView always in the hierarchy when a pattern is active so
+                    // its @StateObject (service + cache) survives panel close/reopen.
+                    if #available(macOS 26.0, *), let entry = library.activeEntry, let text = loadedPatternText {
+                        resizableDivider
+                            .opacity(showAIPanel ? 1 : 0)
+                            .frame(width: showAIPanel ? 1 : 0)
+                        AIPanelView(
+                            entry: entry,
+                            patternText: text,
+                            showAIPanel: $showAIPanel,
+                            abbreviationDict: $abbreviationDict,
+                            bannerDifficulty: $bannerDifficulty,
+                            bannerTotalRows: $bannerTotalRows
+                        )
+                        .frame(width: showAIPanel ? aiPanelWidth : 0)
+                        .opacity(showAIPanel ? 1 : 0)
+                        .clipped()
+                        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: showAIPanel)
                     }
                 }
-                .animation(.spring(response: 0.3, dampingFraction: 0.8), value: showAIPanel)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -68,6 +80,8 @@ struct ContentView: View {
         .onChange(of: library.activeEntryID) { _ in
             abbreviationDict = [:]
             patternScrollToRow = 0
+            bannerDifficulty = nil
+            bannerTotalRows = nil
         }
         .onChange(of: store.rowCount) { row in
             patternScrollToRow = row

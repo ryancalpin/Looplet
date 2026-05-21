@@ -413,9 +413,8 @@ struct MarkdownWebView: NSViewRepresentable {
               });
 
               blocks.forEach(function(block, idx) {
-                block.addEventListener('dblclick', function(e) {
-                  e.stopPropagation();
-                  openEditor(block, idx);
+                block.addEventListener('click', function(e) {
+                  if (e.altKey) { e.stopPropagation(); openEditor(block, idx); }
                 });
               });
 
@@ -501,9 +500,30 @@ struct MarkdownWebView: NSViewRepresentable {
                 var abbrevs=\(json);
                 var keys=Object.keys(abbrevs).sort(function(a,b){return b.length-a.length;});
                 if(!keys.length)return;
+
+                // Floating tooltip element
+                var tip=document.createElement('div');
+                tip.id='__abbrtip';
+                tip.style.cssText='position:fixed;background:rgba(30,30,30,0.92);color:#f2f2f7;' +
+                    'padding:6px 10px;border-radius:7px;font-size:12px;line-height:1.4;' +
+                    'z-index:9999;pointer-events:none;max-width:240px;display:none;' +
+                    'box-shadow:0 2px 10px rgba(0,0,0,0.4);';
+                document.body.appendChild(tip);
+
+                function showTip(e,text){
+                    tip.textContent=text;
+                    var x=Math.min(e.clientX+14,window.innerWidth-254);
+                    var y=e.clientY-44;
+                    if(y<4)y=e.clientY+18;
+                    tip.style.left=x+'px';tip.style.top=y+'px';tip.style.display='block';
+                }
+                function hideTip(){ tip.style.display='none'; }
+                document.addEventListener('scroll',hideTip,true);
+
                 var pattern=new RegExp('\\\\b('+keys.map(function(k){
                     return k.replace(/[.*+?^${}()|[\\]\\\\]/g,'\\\\$&');
                 }).join('|')+')\\\\b','g');
+
                 function processNode(node){
                     if(node.nodeType===Node.TEXT_NODE){
                         var text=node.textContent;
@@ -513,17 +533,19 @@ struct MarkdownWebView: NSViewRepresentable {
                         var last=0,m;
                         while((m=pattern.exec(text))!==null){
                             if(m.index>last)frag.appendChild(document.createTextNode(text.slice(last,m.index)));
-                            var abbr=document.createElement('abbr');
-                            abbr.textContent=m[0];
-                            abbr.title=abbrevs[m[0]]||abbrevs[m[0].toLowerCase()]||m[0];
-                            abbr.style.cssText='border-bottom:1px dotted currentColor;cursor:help;text-decoration:none';
-                            frag.appendChild(abbr);
+                            var span=document.createElement('span');
+                            var meaning=abbrevs[m[0]]||abbrevs[m[0].toLowerCase()]||m[0];
+                            span.textContent=m[0];
+                            span.style.cssText='border-bottom:1px dotted currentColor;cursor:help;';
+                            span.addEventListener('mouseover',function(ev){showTip(ev,meaning);});
+                            span.addEventListener('mouseout',hideTip);
+                            frag.appendChild(span);
                             last=m.index+m[0].length;
                         }
                         if(last<text.length)frag.appendChild(document.createTextNode(text.slice(last)));
                         node.parentNode.replaceChild(frag,node);
                     } else if(node.nodeType===Node.ELEMENT_NODE &&
-                              !['ABBR','CODE','PRE','SCRIPT','STYLE'].includes(node.tagName)){
+                              !['SPAN','CODE','PRE','SCRIPT','STYLE'].includes(node.tagName)){
                         Array.from(node.childNodes).forEach(processNode);
                     }
                 }
