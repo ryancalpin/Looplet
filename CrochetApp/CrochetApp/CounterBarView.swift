@@ -14,6 +14,7 @@ struct CounterBarView: View {
     @State private var rowGoalInput:    String = ""
     @State private var stitchGoalInput: String = ""
     @State private var showResetConfirmation = false
+    @State private var showRepeatResetConfirmation = false
 
     // Width below which secondary controls collapse into the ⋯ menu.
     private let compactBreakpoint: CGFloat = 500
@@ -24,6 +25,9 @@ struct CounterBarView: View {
             HStack(spacing: 10) {
                 rowPill
                 stitchPill
+                if entry?.showRepeatCounter == true {
+                    repeatPill
+                }
 
                 if !compact, let goal = entry?.rowGoal, goal > 0 {
                     rowProgressBar(current: store.rowCount, goal: goal)
@@ -60,6 +64,16 @@ struct CounterBarView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("Row and Stitch counts will be set to 0.")
+        }
+        .confirmationDialog(
+            "Reset repeat counter?",
+            isPresented: $showRepeatResetConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Reset", role: .destructive) { store.resetRepeat() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Repeat count will be set to 0.")
         }
     }
 
@@ -125,6 +139,66 @@ struct CounterBarView: View {
             }
             if entry?.rowGoal != nil {
                 Button("Clear Row Goal") { entry?.rowGoal = nil }
+            }
+            Divider()
+            if entry?.showRepeatCounter == true {
+                Button("Hide Repeat Counter") {
+                    guard let e = entry else { return }
+                    store.resetRepeat()
+                    entry?.showRepeatCounter = false
+                    // persist via library binding
+                    _ = e
+                }
+            } else {
+                Button("Add Repeat Counter") { entry?.showRepeatCounter = true }
+            }
+        }
+    }
+
+    // MARK: - Repeat Pill
+
+    private var repeatPill: some View {
+        pillShell(color: .teal) {
+            Button { withAnimation { store.decrementRepeat() } } label: {
+                Image(systemName: "minus")
+                    .font(.system(size: 13, weight: .semibold))
+                    .frame(width: pillHeight, height: pillHeight)
+                    .background(Color.teal.opacity(0.15))
+                    .foregroundColor(store.repeatCount == 0 ? .secondary : .teal)
+            }
+            .buttonStyle(.plain)
+            .disabled(store.repeatCount == 0)
+
+            Divider().frame(height: pillHeight)
+
+            VStack(spacing: 1) {
+                Text("REPEAT").font(.system(size: 9, weight: .semibold)).foregroundColor(.teal)
+                Text("\(store.repeatCount)")
+                    .font(.system(size: settings.counterSize.fontSize, weight: .bold, design: .rounded))
+                    .foregroundColor(.teal)
+                    .contentTransition(.numericText())
+                    .animation(.spring(response: 0.25, dampingFraction: 0.7), value: store.repeatCount)
+            }
+            .frame(minWidth: 44)
+            .padding(.horizontal, 6)
+
+            Divider().frame(height: pillHeight)
+
+            Button { withAnimation { store.incrementRepeat() } } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 13, weight: .semibold))
+                    .frame(width: pillHeight, height: pillHeight)
+                    .background(Color.teal.opacity(0.15))
+                    .foregroundColor(.teal)
+            }
+            .buttonStyle(.plain)
+        }
+        .help("Repeat counter — right-click to reset or hide")
+        .contextMenu {
+            Button("Reset Repeat") { showRepeatResetConfirmation = true }
+            Button("Hide Repeat Counter") {
+                store.resetRepeat()
+                entry?.showRepeatCounter = false
             }
         }
     }

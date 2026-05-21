@@ -1,9 +1,9 @@
 import Foundation
 import FoundationModels
 
-// MARK: - Result Types
+// MARK: - Result Types (Codable for persistence)
 
-struct PatternSummary {
+struct PatternSummary: Codable {
     let patternName: String
     let skillLevel: String
     let materials: String
@@ -12,31 +12,27 @@ struct PatternSummary {
     let keyStitches: String
 }
 
-struct AbbreviationEntry: Identifiable {
-    let id = UUID()
+struct AbbreviationEntry: Identifiable, Codable {
+    let id: UUID
     let abbreviation: String
     let meaning: String
+
+    init(abbreviation: String, meaning: String) {
+        self.id = UUID()
+        self.abbreviation = abbreviation
+        self.meaning = meaning
+    }
 }
 
-struct AbbreviationList {
+struct AbbreviationList: Codable {
     let convention: String
     let entries: [AbbreviationEntry]
 }
 
-struct MaterialsBreakdown {
+struct MaterialsBreakdown: Codable {
     let yarn: String
     let hook: String
     let notions: String
-}
-
-struct StitchCountResult {
-    struct RowIssue: Identifiable {
-        let id = UUID()
-        let rowNumber: Int
-        let description: String
-    }
-    let issues: [RowIssue]
-    let unverifiableNote: String?
 }
 
 // MARK: - Service
@@ -49,18 +45,12 @@ final class PatternAIService: ObservableObject {
     @Published var isLoadingAbbreviations = false
     @Published var isLoadingMaterials = false
     @Published var isLoadingDifficulty = false
-    @Published var isLoadingConversion = false
-    @Published var isLoadingStitchVerifier = false
-    @Published var isLoadingYarnSub = false
     @Published var isLoadingTimeEstimate = false
 
     private var summaryCache: [UUID: PatternSummary] = [:]
     private var abbreviationCache: [UUID: AbbreviationList] = [:]
     private var materialsCache: [UUID: MaterialsBreakdown] = [:]
     private var difficultyCache: [UUID: String] = [:]
-    private var conversionCache: [UUID: String] = [:]
-    private var stitchVerifierCache: [UUID: StitchCountResult] = [:]
-    private var yarnSubCache: [UUID: String] = [:]
     private var timeEstimateCache: [UUID: String] = [:]
 
     func clearCache(for patternID: UUID) {
@@ -68,9 +58,6 @@ final class PatternAIService: ObservableObject {
         abbreviationCache.removeValue(forKey: patternID)
         materialsCache.removeValue(forKey: patternID)
         difficultyCache.removeValue(forKey: patternID)
-        conversionCache.removeValue(forKey: patternID)
-        stitchVerifierCache.removeValue(forKey: patternID)
-        yarnSubCache.removeValue(forKey: patternID)
         timeEstimateCache.removeValue(forKey: patternID)
     }
 
@@ -219,124 +206,6 @@ final class PatternAIService: ObservableObject {
         let response = try await session.respond(to: prompt)
         let result = response.content.trimmingCharacters(in: .whitespacesAndNewlines)
         difficultyCache[patternID] = result
-        return result
-    }
-
-    // MARK: - US ↔ UK Converter
-
-    func convertTerminology(patternID: UUID, patternText: String) async throws -> String {
-        if let cached = conversionCache[patternID] { return cached }
-        isLoadingConversion = true
-        defer { isLoadingConversion = false }
-
-        let maxChars = 6000
-        guard patternText.count <= maxChars else {
-            let result = "Pattern is too long for full conversion (\(patternText.count) characters). Try a shorter pattern or paste just the stitch instructions."
-            conversionCache[patternID] = result
-            return result
-        }
-
-        let session = LanguageModelSession()
-        let prompt = """
-        You are a crochet expert. The following pattern uses crochet terminology.
-        First, detect whether it uses US or UK conventions.
-        Then rewrite the entire pattern with all stitch terms converted to the opposite convention.
-        Use these mappings (US→UK): sc→dc, dc→tr, hdc→htr, tr→dtr, skip→miss, yarn over→yarn round hook.
-        Reverse the mappings for UK→US patterns.
-        Begin your reply with "Converted from [US/UK] to [UK/US]:" on its own line, then the full converted pattern text.
-
-        Pattern:
-        \(patternText)
-        """
-        let response = try await session.respond(to: prompt)
-        let result = response.content.trimmingCharacters(in: .whitespacesAndNewlines)
-        conversionCache[patternID] = result
-        return result
-    }
-
-    // MARK: - Stitch Count Verifier
-
-    func verifyStitchCounts(patternID: UUID, patternText: String) async throws -> StitchCountResult {
-        if let cached = stitchVerifierCache[patternID] { return cached }
-        isLoadingStitchVerifier = true
-        defer { isLoadingStitchVerifier = false }
-
-        let maxChars = 6000
-        guard patternText.count <= maxChars else {
-            let result = StitchCountResult(
-                issues: [],
-                unverifiableNote: "Pattern is too long to verify (\(patternText.count) characters). Try pasting just the row-by-row instructions."
-            )
-            stitchVerifierCache[patternID] = result
-            return result
-        }
-
-        let session = LanguageModelSession()
-        let prompt = """
-        You are a crochet expert and stitch math checker. Read the following pattern row by row and verify stitch counts.
-        Rules:
-        - If a row's stitch count is correct, skip it silently.
-        - If a row's stitch count does NOT match the expected count from the prior row, output one line like:
-          "Row 3: Expected 18 stitches (6 sc + 6×2-into-1 increases from Row 2's 12), but instructions produce 15."
-        - If a row's math cannot be parsed (ambiguous instructions, complex stitch combos, etc.), output:
-          "Row 5: Cannot verify — stitch math is ambiguous here."
-        - If every row checks out, output exactly: "All rows verified."
-        Output nothing else — no headers, no explanations outside the rows listed.
-
-        Pattern:
-        \(patternText)
-        """
-        let response = try await session.respond(to: prompt)
-        let text = response.content
-        let lines = text.components(separatedBy: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
-
-        var issues: [StitchCountResult.RowIssue] = []
-        var unverifiableNote: String? = nil
-
-        if lines.first == "All rows verified." {
-            let result = StitchCountResult(issues: [], unverifiableNote: nil)
-            stitchVerifierCache[patternID] = result
-            return result
-        }
-
-        for line in lines {
-            if line.lowercased().hasPrefix("row ") {
-                let withoutPrefix = String(line.dropFirst(4))
-                if let colonRange = withoutPrefix.range(of: ":") {
-                    let rowNumStr = String(withoutPrefix[withoutPrefix.startIndex..<colonRange.lowerBound]).trimmingCharacters(in: .whitespaces)
-                    let description = String(withoutPrefix[colonRange.upperBound...]).trimmingCharacters(in: .whitespaces)
-                    if let rowNum = Int(rowNumStr) {
-                        issues.append(StitchCountResult.RowIssue(rowNumber: rowNum, description: description))
-                    }
-                }
-            }
-        }
-
-        let result = StitchCountResult(issues: issues, unverifiableNote: unverifiableNote)
-        stitchVerifierCache[patternID] = result
-        return result
-    }
-
-    // MARK: - Yarn Substitution Suggester
-
-    func suggestYarnSubstitutions(patternID: UUID, patternText: String) async throws -> String {
-        if let cached = yarnSubCache[patternID] { return cached }
-        isLoadingYarnSub = true
-        defer { isLoadingYarnSub = false }
-
-        let session = LanguageModelSession()
-        let prompt = """
-        You are a crochet expert. Based on the yarn specification in the following pattern, \
-        suggest 2–3 alternative yarn characteristics that would work as substitutes.
-        Do NOT recommend specific brand names. Stay generic (e.g., "any worsted-weight superwash wool or acrylic blend").
-        Format as a numbered list. Keep each item to one sentence.
-
-        Pattern:
-        \(patternText)
-        """
-        let response = try await session.respond(to: prompt)
-        let result = response.content.trimmingCharacters(in: .whitespacesAndNewlines)
-        yarnSubCache[patternID] = result
         return result
     }
 

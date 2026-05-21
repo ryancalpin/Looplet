@@ -326,7 +326,7 @@ struct MarkdownConverter {
 // MARK: - WKWebView Wrapper
 struct MarkdownWebView: NSViewRepresentable {
     let htmlContent: String
-    let annotations: [Int: String]
+    let annotations: [String: String]
     let bridge: AnnotationBridge
     var scrollToRow: Int = 0
     var abbreviationDict: [String: String] = [:]
@@ -378,13 +378,13 @@ struct MarkdownWebView: NSViewRepresentable {
     }
 
     final class Coordinator: NSObject, WKNavigationDelegate {
-        var pendingAnnotations: [Int: String]
+        var pendingAnnotations: [String: String]
         var pendingAbbreviationDict: [String: String] = [:]
         var lastLoadedHTML: String = ""
         var lastScrollRow: Int = 0
         var lastAbbreviationDict: [String: String] = [:]
 
-        init(annotations: [Int: String]) {
+        init(annotations: [String: String]) {
             self.pendingAnnotations = annotations
         }
 
@@ -396,11 +396,9 @@ struct MarkdownWebView: NSViewRepresentable {
             }
         }
 
-        private func injectAnnotationJS(into webView: WKWebView, annotations: [Int: String]) {
-            var stringKeyed: [String: String] = [:]
-            for (k, v) in annotations { stringKeyed["\(k)"] = v }
+        private func injectAnnotationJS(into webView: WKWebView, annotations: [String: String]) {
             let annotationsJSON: String
-            if let data = try? JSONSerialization.data(withJSONObject: stringKeyed),
+            if let data = try? JSONSerialization.data(withJSONObject: annotations),
                let str = String(data: data, encoding: .utf8) {
                 annotationsJSON = str
             } else {
@@ -413,10 +411,19 @@ struct MarkdownWebView: NSViewRepresentable {
               var existingNotes = \(annotationsJSON);
               var blocks = Array.from(document.querySelectorAll('p, li'));
 
-              blocks.forEach(function(block, idx) {
-                var key = String(idx);
+              function fingerprint(text) {
+                return text.trim().toLowerCase().slice(0, 64);
+              }
+              function safeId(fp) {
+                return fp.replace(/[^a-z0-9]/g, '_').slice(0, 32);
+              }
+              function noteId(fp) { return 'ann-note-' + safeId(fp); }
+              function editorId(fp) { return 'ann-editor-' + safeId(fp); }
+
+              blocks.forEach(function(block) {
+                var key = fingerprint(block.textContent);
                 if (existingNotes[key]) {
-                  insertNoteElement(block, idx, existingNotes[key]);
+                  insertNoteElement(block, key, existingNotes[key]);
                 }
               });
 
@@ -431,12 +438,13 @@ struct MarkdownWebView: NSViewRepresentable {
                   'box-shadow:0 1px 4px rgba(0,0,0,0.3);user-select:none;line-height:1;';
               document.body.appendChild(noteBtn);
 
-              var hoveredBlock = null, hoveredIdx = -1, hideTimer = null;
+              var hoveredBlock = null, hoveredKey = null, hideTimer = null;
 
-              blocks.forEach(function(block, idx) {
+              blocks.forEach(function(block) {
                 block.addEventListener('mouseenter', function() {
                   clearTimeout(hideTimer);
-                  hoveredBlock = block; hoveredIdx = idx;
+                  hoveredBlock = block;
+                  hoveredKey = fingerprint(block.textContent);
                   var rect = block.getBoundingClientRect();
                   noteBtn.style.left = (rect.right - 26) + 'px';
                   noteBtn.style.top = Math.max(4, rect.top) + 'px';
@@ -453,7 +461,7 @@ struct MarkdownWebView: NSViewRepresentable {
               noteBtn.addEventListener('click', function(e) {
                 e.stopPropagation();
                 noteBtn.style.display = 'none';
-                openEditor(hoveredBlock, hoveredIdx);
+                openEditor(hoveredBlock, hoveredKey);
               });
 
               // Click outside editor to dismiss
@@ -462,27 +470,24 @@ struct MarkdownWebView: NSViewRepresentable {
                 if (editor && !editor.contains(e.target)) { editor.remove(); }
               });
 
-              function noteId(idx) { return 'ann-note-' + idx; }
-              function editorId(idx) { return 'ann-editor-' + idx; }
-
-              function insertNoteElement(block, idx, text) {
-                var existing = document.getElementById(noteId(idx));
+              function insertNoteElement(block, key, text) {
+                var existing = document.getElementById(noteId(key));
                 if (existing) { existing.remove(); }
                 var div = document.createElement('div');
-                div.id = noteId(idx);
+                div.id = noteId(key);
                 div.style.cssText = 'border-left:2px solid '+AMBER+';padding-left:10px;margin:4px 0 8px 0;font-style:italic;color:#999;font-size:11px;cursor:pointer';
                 div.textContent = text;
                 div.addEventListener('click', function(e) {
                   e.stopPropagation();
-                  openEditor(block, idx, text);
+                  openEditor(block, key, text);
                 });
                 block.insertAdjacentElement('afterend', div);
               }
 
-              function openEditor(block, idx, existingText) {
+              function openEditor(block, key, existingText) {
                 document.querySelectorAll('[id^="ann-editor-"]').forEach(function(el) { el.remove(); });
                 var container = document.createElement('div');
-                container.id = editorId(idx);
+                container.id = editorId(key);
                 container.style.cssText = 'border-left:2px solid '+AMBER+';padding-left:10px;margin:4px 0 8px 0;display:flex;align-items:center;gap:8px';
                 var input = document.createElement('input');
                 input.type = 'text';
@@ -490,7 +495,7 @@ struct MarkdownWebView: NSViewRepresentable {
                 input.placeholder = 'Add a note…';
                 input.style.cssText = 'flex:1;border:none;border-bottom:1px solid '+AMBER+';background:transparent;font-style:italic;color:#999;font-size:11px;outline:none;padding:2px 0';
                 input.addEventListener('keydown', function(e) {
-                  if (e.key === 'Enter') { e.preventDefault(); saveNote(idx, input.value, container); }
+                  if (e.key === 'Enter') { e.preventDefault(); saveNote(key, input.value, block, container); }
                   else if (e.key === 'Escape') { container.remove(); }
                 });
                 container.appendChild(input);
@@ -499,30 +504,30 @@ struct MarkdownWebView: NSViewRepresentable {
                   del.textContent = 'Delete';
                   del.href = '#';
                   del.style.cssText = 'color:#999;font-size:10px;text-decoration:none';
-                  del.addEventListener('click', function(e) { e.preventDefault(); deleteNote(idx, container); });
+                  del.addEventListener('click', function(e) { e.preventDefault(); deleteNote(key, container); });
                   container.appendChild(del);
                 }
                 block.insertAdjacentElement('afterend', container);
                 input.focus();
               }
 
-              function saveNote(idx, text, container) {
+              function saveNote(key, text, block, container) {
                 container.remove();
-                var noteEl = document.getElementById(noteId(idx));
+                var noteEl = document.getElementById(noteId(key));
                 if (noteEl) { noteEl.remove(); }
                 if (text.trim()) {
-                  insertNoteElement(blocks[idx], idx, text.trim());
-                  window.webkit.messageHandlers.AnnotationBridge.postMessage({action:'save',index:idx,text:text.trim()});
+                  insertNoteElement(block, key, text.trim());
+                  window.webkit.messageHandlers.AnnotationBridge.postMessage({action:'save',key:key,text:text.trim()});
                 } else {
-                  window.webkit.messageHandlers.AnnotationBridge.postMessage({action:'delete',index:idx,text:''});
+                  window.webkit.messageHandlers.AnnotationBridge.postMessage({action:'delete',key:key,text:''});
                 }
               }
 
-              function deleteNote(idx, container) {
+              function deleteNote(key, container) {
                 container.remove();
-                var noteEl = document.getElementById(noteId(idx));
+                var noteEl = document.getElementById(noteId(key));
                 if (noteEl) { noteEl.remove(); }
-                window.webkit.messageHandlers.AnnotationBridge.postMessage({action:'delete',index:idx,text:''});
+                window.webkit.messageHandlers.AnnotationBridge.postMessage({action:'delete',key:key,text:''});
               }
             })();
             """
@@ -645,7 +650,7 @@ struct MarkdownView: View {
             } else {
                 MarkdownWebView(
                     htmlContent: htmlContent,
-                    annotations: library.activeEntry?.annotations ?? [:],
+                    annotations: (library.activeEntry?.annotations ?? [:]),
                     bridge: bridge,
                     scrollToRow: scrollToRow,
                     abbreviationDict: abbreviationDict

@@ -204,6 +204,8 @@ struct PatternLibraryView: View {
                     library.togglePin(entryID: entry.id)
                 }
                 Divider()
+                Button("Export Notes…") { exportNotes(for: entry) }
+                Divider()
                 Button("Remove from Library", role: .destructive) {
                     entryToRemove = entry
                 }
@@ -230,5 +232,34 @@ struct PatternLibraryView: View {
     private func relativeDate(_ date: Date) -> String {
         if Date().timeIntervalSince(date) < 60 { return "Just now" }
         return Self.relativeDateFormatter.localizedString(for: date, relativeTo: Date())
+    }
+
+    private func exportNotes(for entry: PatternEntry) {
+        var lines: [String] = []
+        lines.append("# Notes — \(entry.displayName)")
+        lines.append("Exported \(DateFormatter.localizedString(from: Date(), dateStyle: .medium, timeStyle: .short))")
+        lines.append("")
+        lines.append("**Progress:** Row \(entry.rowCount)\(entry.rowGoal.map { " / \($0)" } ?? "") · Stitch \(entry.stitchCount)")
+        lines.append("")
+
+        if entry.annotations.isEmpty {
+            lines.append("No notes recorded.")
+        } else {
+            lines.append("## Notes")
+            for (key, note) in entry.annotations.sorted(by: { $0.key < $1.key }) {
+                let preview = key.prefix(50)
+                lines.append("- **\"\(preview)...\"** — \(note)")
+            }
+        }
+
+        let content = lines.joined(separator: "\n")
+        let panel = NSSavePanel()
+        panel.title = "Export Notes"
+        panel.nameFieldStringValue = "\(entry.displayName) Notes.md"
+        panel.allowedContentTypes = [.text, UTType(filenameExtension: "md") ?? .text]
+        panel.begin { response in
+            guard response == .OK, let url = panel.url else { return }
+            try? content.write(to: url, atomically: true, encoding: .utf8)
+        }
     }
 }
