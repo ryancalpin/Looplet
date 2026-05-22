@@ -6,24 +6,57 @@ import WebKit
 // Chooses which "Row/Rnd/Round N" element to scroll to in a multi-part pattern,
 // where the same number appears once per part. Pure + testable.
 enum RowFollow {
-    /// Indices of elements whose text contains "Row/Rnd/Round <row>" as a whole word.
-    static func matchingIndices(in texts: [String], row: Int) -> [Int] {
-        guard row > 0,
-              let re = try? NSRegularExpression(pattern: "\\b(Row|Rnd|Round)\\s+\(row)\\b", options: [.caseInsensitive])
-        else { return [] }
-        return texts.indices.filter { i in
-            let t = texts[i]
-            return re.firstMatch(in: t, range: NSRange(t.startIndex..., in: t)) != nil
+    // Exact: "Row/Rnd/Round 8". Range: "Rnds 5–7" / "Rows 5-7" (hyphen, en-dash, em-dash).
+    private static let exactRE = try? NSRegularExpression(
+        pattern: "\\b(?:Row|Rnd|Round)s?\\s+(\\d+)\\b", options: [.caseInsensitive])
+    private static let rangeRE = try? NSRegularExpression(
+        pattern: "\\b(?:Row|Rnd|Round)s?\\s+(\\d+)\\s*[-–—]\\s*(\\d+)", options: [.caseInsensitive])
+
+    /// Does this element's text refer to `row` — either as an exact "Rnd N" or within a
+    /// range like "Rnds 5–7"?
+    static func matches(_ text: String, row: Int) -> Bool {
+        let full = NSRange(text.startIndex..., in: text)
+        // Ranges first (a range like "Rnds 5–7" also contains a leading number that the
+        // exact pattern would catch, but range membership is the correct interpretation).
+        if let rangeRE {
+            for m in rangeRE.matches(in: text, range: full) {
+                if let s = intCapture(m, 1, in: text), let e = intCapture(m, 2, in: text),
+                   min(s, e) <= row, row <= max(s, e) {
+                    return true
+                }
+            }
         }
+        if let exactRE {
+            for m in exactRE.matches(in: text, range: full) {
+                if intCapture(m, 1, in: text) == row { return true }
+            }
+        }
+        return false
     }
 
-    /// Forward-biased pick: the first match AFTER the anchor — so counting up follows
-    /// forward and resetting to 1 for a new part jumps into that part rather than back
-    /// to part 1. If there is no match after the anchor (e.g. stepping backward within
-    /// a part, or the last part), fall back to the closest match at/before the anchor.
+    private static func intCapture(_ m: NSTextCheckingResult, _ i: Int, in text: String) -> Int? {
+        guard let r = Range(m.range(at: i), in: text) else { return nil }
+        return Int(text[r])
+    }
+
+    /// Indices of elements that refer to `row` (exact or via a range).
+    static func matchingIndices(in texts: [String], row: Int) -> [Int] {
+        guard row > 0 else { return [] }
+        return texts.indices.filter { matches(texts[$0], row: row) }
+    }
+
+    /// Picks which matching element to scroll to, biased toward forward progress:
+    /// 1. If the current element (anchor) still refers to this row — e.g. counting 8,9,10
+    ///    while sitting on a "Rnds 7–12" range block — stay put (don't jump to a later
+    ///    part that happens to share those numbers).
+    /// 2. Otherwise the first match AFTER the anchor — so resetting to 1 for a new part
+    ///    advances into that part instead of snapping back to part 1.
+    /// 3. Otherwise the last match at/before the anchor (stepping back, or the last part).
     /// Returns nil when the row number appears nowhere.
     static func targetIndex(in texts: [String], row: Int, anchor: Int) -> Int? {
         let matches = matchingIndices(in: texts, row: row)
+        guard !matches.isEmpty else { return nil }
+        if anchor >= 0, matches.contains(anchor) { return anchor }
         if let forward = matches.first(where: { $0 > anchor }) { return forward }
         return matches.last
     }
