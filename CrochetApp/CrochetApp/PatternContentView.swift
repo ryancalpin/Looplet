@@ -55,6 +55,7 @@ struct PDFKitView: NSViewRepresentable {
             pdfView.document = PDFDocument(url: url)
             context.coordinator.loadedURL = url
             context.coordinator.lastScrollRow = 0
+            context.coordinator.lastSelectionPage = nil
         }
 
         // Scroll to row if changed
@@ -62,12 +63,22 @@ struct PDFKitView: NSViewRepresentable {
            let doc = pdfView.document {
             context.coordinator.lastScrollRow = scrollToRow
             let terms = ["Row \(scrollToRow)", "Rnd \(scrollToRow)", "Round \(scrollToRow)"]
-            for term in terms {
-                if let sel = doc.findString(term, withOptions: .caseInsensitive).first {
-                    pdfView.go(to: sel)
-                    pdfView.setCurrentSelection(sel, animate: true)
-                    break
+            // Multi-part patterns repeat the same "Rnd N" per part, so pick the match
+            // on the page CLOSEST to where we last scrolled rather than always the first.
+            let matches = terms.flatMap { doc.findString($0, withOptions: .caseInsensitive) }
+            func page(of sel: PDFSelection) -> Int? { sel.pages.first.map { doc.index(for: $0) } }
+            let chosen: PDFSelection?
+            if let last = context.coordinator.lastSelectionPage {
+                chosen = matches.min { a, b in
+                    abs((page(of: a) ?? 0) - last) < abs((page(of: b) ?? 0) - last)
                 }
+            } else {
+                chosen = matches.first
+            }
+            if let sel = chosen {
+                pdfView.go(to: sel)
+                pdfView.setCurrentSelection(sel, animate: true)
+                context.coordinator.lastSelectionPage = page(of: sel)
             }
         }
     }
@@ -85,5 +96,6 @@ struct PDFKitView: NSViewRepresentable {
         var accessing = false
         var loadedURL: URL?
         var lastScrollRow: Int = 0
+        var lastSelectionPage: Int? = nil
     }
 }
