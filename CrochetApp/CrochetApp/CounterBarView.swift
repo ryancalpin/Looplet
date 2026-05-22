@@ -300,7 +300,7 @@ struct CounterBarView: View {
 
     // MARK: - Colors
 
-    private var rowColor: Color { settings.rowColor }
+    private var rowColor: Color { settings.rowColor.legible(in: colorScheme) }
 }
 
 // MARK: - GoalInputPopover
