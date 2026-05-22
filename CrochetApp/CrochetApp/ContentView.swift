@@ -1,9 +1,6 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-@available(macOS 26.0, *)
-private enum AIServiceBox { @MainActor static let shared = PatternAIService() }
-
 struct ContentView: View {
     @ObservedObject var library: PatternLibrary
     @ObservedObject var store: CounterStore
@@ -56,7 +53,7 @@ struct ContentView: View {
                     if #available(macOS 26.0, *), showAIPanel, let entry = library.activeEntry, let text = loadedPatternText {
                         resizableDivider
                         AIPanelView(
-                            service: AIServiceBox.shared,
+                            service: AIInsights.service,
                             entry: entry,
                             patternText: text,
                             library: library,
@@ -118,12 +115,20 @@ struct ContentView: View {
         .onChange(of: library.activeEntryID) { _ in
             abbreviationDict = [:]
             patternScrollToRow = 0
+            // Kick off (or backfill) AI insight generation as soon as a pattern is
+            // imported or opened. Idempotent + persisted, so this never re-bursts.
+            if #available(macOS 26.0, *), let id = library.activeEntryID {
+                AIInsights.ensure(for: id, in: library)
+            }
         }
         .onChange(of: store.rowCount) { row in
             patternScrollToRow = row
         }
         .onAppear {
             NSApp.mainWindow?.title = library.activeEntry?.displayName ?? "Crochet Helper"
+            if #available(macOS 26.0, *), let id = library.activeEntryID {
+                AIInsights.ensure(for: id, in: library)
+            }
         }
     }
 

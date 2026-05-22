@@ -254,3 +254,74 @@ final class PatternAIService: ObservableObject {
         return "Unknown"
     }
 }
+
+// MARK: - Background insight driver
+
+/// Owns the single shared `PatternAIService` and generates a pattern's AI insights
+/// in the background as soon as it is imported (or first opened), persisting each
+/// result to the library so it never needs to be re-run.
+///
+/// `ensure(for:in:)` is idempotent: it skips fields already cached on the entry and
+/// will not start a second run for a pattern that is already being analyzed. This is
+/// what makes "auto-parse on import" safe — opening or re-selecting a pattern never
+/// triggers a fresh burst of on-device model calls once its insights are persisted.
+@available(macOS 26.0, *)
+@MainActor
+enum AIInsights {
+    /// The one service instance shared by the background driver and the AI panel,
+    /// so their in-memory caches stay coherent.
+    static let service = PatternAIService()
+
+    /// Patterns currently being analyzed, to avoid overlapping runs.
+    private static var inFlight: Set<UUID> = []
+
+    /// Generate any missing insights for `entryID` and persist them. Safe to call on
+    /// every import and every selection — it no-ops when the work is already done or
+    /// in progress.
+    static func ensure(for entryID: UUID, in library: PatternLibrary) {
+        guard !inFlight.contains(entryID),
+              let entry = library.entries.first(where: { $0.id == entryID }) else { return }
+
+        // Fully analyzed already — nothing to do.
+        if entry.aiSummary != nil, entry.aiAbbreviations != nil, entry.aiMaterials != nil,
+           entry.aiDifficulty != nil, entry.aiTimeEstimate != nil { return }
+
+        // Read the pattern text once, holding the security scope only for the read.
+        guard let url = entry.resolveURL() else { return }
+        let didAccess = url.startAccessingSecurityScopedResource()
+        let text = try? String(contentsOf: url, encoding: .utf8)
+        if didAccess { url.stopAccessingSecurityScopedResource() }
+        guard let patternText = text, !patternText.isEmpty else { return }
+
+        inFlight.insert(entryID)
+        Task {
+            defer { inFlight.remove(entryID) }
+            func fresh() -> PatternEntry? { library.entries.first { $0.id == entryID } }
+
+            if fresh()?.aiSummary == nil,
+               let r = try? await service.generateSummary(patternID: entryID, patternText: patternText) {
+                library.updateAICache(for: entryID, summary: r)
+            }
+            if fresh()?.aiAbbreviations == nil,
+               let r = try? await service.generateAbbreviations(patternID: entryID, patternText: patternText) {
+                library.updateAICache(for: entryID, abbreviations: r)
+            }
+            if fresh()?.aiMaterials == nil,
+               let r = try? await service.extractMaterials(patternID: entryID, patternText: patternText) {
+                library.updateAICache(for: entryID, materials: r)
+            }
+            if fresh()?.aiDifficulty == nil,
+               let r = try? await service.estimateDifficulty(patternID: entryID, patternText: patternText) {
+                library.updateAICache(for: entryID, difficulty: r)
+            }
+            if fresh()?.aiTimeEstimate == nil {
+                let e = fresh()
+                if let r = try? await service.estimateTime(
+                    patternID: entryID, patternText: patternText,
+                    rowGoal: e?.rowGoal ?? 0, rowCount: e?.rowCount ?? 0) {
+                    library.updateAICache(for: entryID, timeEstimate: r)
+                }
+            }
+        }
+    }
+}
