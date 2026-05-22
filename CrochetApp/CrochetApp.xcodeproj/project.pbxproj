@@ -32,6 +32,11 @@
 		DSHU11111111111111111111 /* GlassHUD.swift in Sources */ = {isa = PBXBuildFile; fileRef = DSHU22222222222222222222 /* GlassHUD.swift */; };
 		DSSC11111111111111111111 /* SectionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = DSSC22222222222222222222 /* SectionCard.swift */; };
 		PE1111111111111111111111 /* PatternExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = PE2222222222222222222222 /* PatternExporter.swift */; };
+		TST0000000000000000000101 /* PatternAIServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TST0000000000000000000201 /* PatternAIServiceTests.swift */; };
+		TST0000000000000000000102 /* AppSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TST0000000000000000000202 /* AppSettingsTests.swift */; };
+		TST0000000000000000000103 /* PatternEntryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TST0000000000000000000203 /* PatternEntryTests.swift */; };
+		TST0000000000000000000104 /* PatternExporterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TST0000000000000000000204 /* PatternExporterTests.swift */; };
+		TST0000000000000000000105 /* CounterStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TST0000000000000000000205 /* CounterStoreTests.swift */; };
 		/* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -63,10 +68,23 @@
 		DSHU22222222222222222222 /* GlassHUD.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassHUD.swift; sourceTree = "<group>"; };
 		DSSC22222222222222222222 /* SectionCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionCard.swift; sourceTree = "<group>"; };
 		PE2222222222222222222222 /* PatternExporter.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PatternExporter.swift; sourceTree = "<group>"; };
+		TST0000000000000000000201 /* PatternAIServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternAIServiceTests.swift; sourceTree = "<group>"; };
+		TST0000000000000000000202 /* AppSettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettingsTests.swift; sourceTree = "<group>"; };
+		TST0000000000000000000203 /* PatternEntryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternEntryTests.swift; sourceTree = "<group>"; };
+		TST0000000000000000000204 /* PatternExporterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternExporterTests.swift; sourceTree = "<group>"; };
+		TST0000000000000000000205 /* CounterStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CounterStoreTests.swift; sourceTree = "<group>"; };
+		TST0000000000000000000300 /* CrochetAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CrochetAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		/* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		AA00000100000000000000BB /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		TST0000000000000000000400 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -122,14 +140,28 @@
 			isa = PBXGroup;
 			children = (
 				AA00000100000000000000AB /* CrochetApp.app */,
+				TST0000000000000000000300 /* CrochetAppTests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		TST0000000000000000000500 /* CrochetAppTests */ = {
+			isa = PBXGroup;
+			children = (
+				TST0000000000000000000201 /* PatternAIServiceTests.swift */,
+				TST0000000000000000000202 /* AppSettingsTests.swift */,
+				TST0000000000000000000203 /* PatternEntryTests.swift */,
+				TST0000000000000000000204 /* PatternExporterTests.swift */,
+				TST0000000000000000000205 /* CounterStoreTests.swift */,
+			);
+			path = CrochetAppTests;
 			sourceTree = "<group>";
 		};
 		AA00000100000000000000EB /* MainGroup */ = {
 			isa = PBXGroup;
 			children = (
 				AA00000100000000000000CB /* CrochetApp */,
+				TST0000000000000000000500 /* CrochetAppTests */,
 				AA00000100000000000000DB /* Products */,
 			);
 			sourceTree = "<group>";
@@ -154,6 +186,24 @@
 			productReference = AA00000100000000000000AB /* CrochetApp.app */;
 			productType = "com.apple.product-type.application";
 		};
+		TST0000000000000000000600 /* CrochetAppTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = TST0000000000000000000900 /* Build configuration list for PBXNativeTarget "CrochetAppTests" */;
+			buildPhases = (
+				TST0000000000000000000700 /* Sources */,
+				TST0000000000000000000400 /* Frameworks */,
+				TST0000000000000000000800 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				TST0000000000000000000A00 /* PBXTargetDependency */,
+			);
+			name = CrochetAppTests;
+			productName = CrochetAppTests;
+			productReference = TST0000000000000000000300 /* CrochetAppTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -166,6 +216,10 @@
 				TargetAttributes = {
 					AA00000100000000000000FB = {
 						CreatedOnToolsVersion = 15.0;
+					};
+					TST0000000000000000000600 = {
+						CreatedOnToolsVersion = 15.0;
+						TestTargetID = AA00000100000000000000FB;
 					};
 				};
 			};
@@ -183,6 +237,7 @@
 			projectRoot = "";
 			targets = (
 				AA00000100000000000000FB /* CrochetApp */,
+				TST0000000000000000000600 /* CrochetAppTests */,
 			);
 		};
 /* End PBXProject section */
@@ -193,6 +248,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				AA000001000000000000006A /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		TST0000000000000000000800 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -230,7 +292,37 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		TST0000000000000000000700 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				TST0000000000000000000101 /* PatternAIServiceTests.swift in Sources */,
+				TST0000000000000000000102 /* AppSettingsTests.swift in Sources */,
+				TST0000000000000000000103 /* PatternEntryTests.swift in Sources */,
+				TST0000000000000000000104 /* PatternExporterTests.swift in Sources */,
+				TST0000000000000000000105 /* CounterStoreTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXContainerItemProxy section */
+		TST0000000000000000000B00 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AA0000010000000000000130 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AA00000100000000000000FB /* CrochetApp */;
+			remoteInfo = CrochetApp;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXTargetDependency section */
+		TST0000000000000000000A00 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AA00000100000000000000FB /* CrochetApp */;
+			targetProxy = TST0000000000000000000B00 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		AA0000010000000000000150 /* Debug */ = {
@@ -401,6 +493,38 @@
 			};
 			name = Release;
 		};
+		TST0000000000000000000910 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.prism.CrochetAppTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/CrochetApp.app/Contents/MacOS/CrochetApp";
+			};
+			name = Debug;
+		};
+		TST0000000000000000000920 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.prism.CrochetAppTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/CrochetApp.app/Contents/MacOS/CrochetApp";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -418,6 +542,15 @@
 			buildConfigurations = (
 				AA0000010000000000000150 /* Debug */,
 				AA0000010000000000000160 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		TST0000000000000000000900 /* Build configuration list for PBXNativeTarget "CrochetAppTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				TST0000000000000000000910 /* Debug */,
+				TST0000000000000000000920 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
