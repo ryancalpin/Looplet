@@ -293,6 +293,11 @@ struct CounterBarView: View {
                 Divider()
                 Button(showAIPanel ? "Close AI Panel" : "Open AI Panel") { showAIPanel.toggle() }
             }
+            if let e = entry {
+                Divider()
+                Button("Export Insights…") { PatternExporter.exportToFile(e) }
+                Button("Share…") { PatternExporter.share(e, from: nil) }
+            }
         } label: {
             Image(systemName: "ellipsis.circle")
                 .font(.system(size: 17))

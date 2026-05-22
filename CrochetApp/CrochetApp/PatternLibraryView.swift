@@ -252,6 +252,7 @@ struct PatternLibraryView: View {
                     }
                 }
                 Divider()
+                Button("Export Insights…") { PatternExporter.exportToFile(entry) }
                 Button("Export Notes…") { exportNotes(for: entry) }
                 Divider()
                 Button("Remove from Library", role: .destructive) { entryToRemove = entry }
