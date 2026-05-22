@@ -32,6 +32,7 @@
 		DSHU11111111111111111111 /* GlassHUD.swift in Sources */ = {isa = PBXBuildFile; fileRef = DSHU22222222222222222222 /* GlassHUD.swift */; };
 		DSSC11111111111111111111 /* SectionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = DSSC22222222222222222222 /* SectionCard.swift */; };
 		PE1111111111111111111111 /* PatternExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = PE2222222222222222222222 /* PatternExporter.swift */; };
+		CS1111111111111111111111 /* CloudSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = CS2222222222222222222222 /* CloudSync.swift */; };
 		TST0000000000000000000101 /* PatternAIServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TST0000000000000000000201 /* PatternAIServiceTests.swift */; };
 		TST0000000000000000000102 /* AppSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TST0000000000000000000202 /* AppSettingsTests.swift */; };
 		TST0000000000000000000103 /* PatternEntryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TST0000000000000000000203 /* PatternEntryTests.swift */; };
@@ -68,6 +69,7 @@
 		DSHU22222222222222222222 /* GlassHUD.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassHUD.swift; sourceTree = "<group>"; };
 		DSSC22222222222222222222 /* SectionCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionCard.swift; sourceTree = "<group>"; };
 		PE2222222222222222222222 /* PatternExporter.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PatternExporter.swift; sourceTree = "<group>"; };
+		CS2222222222222222222222 /* CloudSync.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CloudSync.swift; sourceTree = "<group>"; };
 		TST0000000000000000000201 /* PatternAIServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternAIServiceTests.swift; sourceTree = "<group>"; };
 		TST0000000000000000000202 /* AppSettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettingsTests.swift; sourceTree = "<group>"; };
 		TST0000000000000000000203 /* PatternEntryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternEntryTests.swift; sourceTree = "<group>"; };
@@ -117,6 +119,7 @@
 				NN4444444444444444444444 /* SettingsView.swift */,
 				OO6666666666666666666666 /* PatternContentView.swift */,
 				PE2222222222222222222222 /* PatternExporter.swift */,
+				CS2222222222222222222222 /* CloudSync.swift */,
 				AA000001000000000000006B /* Assets.xcassets */,
 				AA000001000000000000007B /* Info.plist */,
 				AA000001000000000000008B /* CrochetApp.entitlements */,
@@ -289,6 +292,7 @@
 				NN3333333333333333333333 /* SettingsView.swift in Sources */,
 				OO5555555555555555555555 /* PatternContentView.swift in Sources */,
 				PE1111111111111111111111 /* PatternExporter.swift in Sources */,
+				CS1111111111111111111111 /* CloudSync.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

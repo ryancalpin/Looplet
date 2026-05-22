@@ -37,6 +37,22 @@ class PatternLibrary: ObservableObject {
         return support.appendingPathComponent("CrochetApp/yarn.json")
     }()
 
+    // MARK: - iCloud sync state
+
+    private let localStampKey = "cloud.localStamp"
+
+    /// Timestamp (Unix epoch seconds) of when local data last changed.
+    /// Used for last-writer-wins reconciliation against the iCloud KVS stamp.
+    private var localStamp: TimeInterval {
+        get { UserDefaults.standard.double(forKey: localStampKey) }
+        set { UserDefaults.standard.set(newValue, forKey: localStampKey) }
+    }
+
+    /// While `true`, `save()`/`saveYarn()` still write local JSON but skip the
+    /// cloud push and the localStamp bump. This prevents a pull-then-push
+    /// ping-pong when applying a remote change.
+    private var isApplyingRemote = false
+
     // MARK: - Computed
 
     var pinned: [PatternEntry] {
@@ -57,6 +73,12 @@ class PatternLibrary: ObservableObject {
     init() {
         load()
         loadYarn()
+        // Pull any newer data already sitting in iCloud, then watch for
+        // other-device changes. Both are no-ops if iCloud is unavailable.
+        syncFromCloudIfNeeded()
+        CloudSync.shared.startObserving { [weak self] in
+            self?.syncFromCloudIfNeeded()
+        }
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(appWillTerminate),
@@ -196,6 +218,11 @@ class PatternLibrary: ObservableObject {
     func save() {
         guard let data = try? JSONEncoder().encode(entries) else { return }
         try? data.write(to: storageURL, options: .atomic)
+        // Mirror to iCloud unless we're in the middle of applying a remote pull.
+        guard !isApplyingRemote else { return }
+        guard let yarnData = try? JSONEncoder().encode(yarnStash) else { return }
+        localStamp = Date().timeIntervalSince1970
+        CloudSync.shared.push(entries: data, yarn: yarnData)
     }
 
     private func load() {
@@ -207,6 +234,32 @@ class PatternLibrary: ObservableObject {
     private func saveYarn() {
         guard let data = try? JSONEncoder().encode(yarnStash) else { return }
         try? data.write(to: yarnURL, options: .atomic)
+        // Mirror to iCloud unless we're in the middle of applying a remote pull.
+        guard !isApplyingRemote else { return }
+        guard let entriesData = try? JSONEncoder().encode(entries) else { return }
+        localStamp = Date().timeIntervalSince1970
+        CloudSync.shared.push(entries: entriesData, yarn: data)
+    }
+
+    /// Pull data from iCloud KVS when it is newer than the local copy
+    /// (last-writer-wins by timestamp). Every step is guarded; on any failure
+    /// the local data is left completely untouched.
+    func syncFromCloudIfNeeded() {
+        guard let (e, y) = CloudSync.shared.pullIfNewer(localStamp: localStamp) else { return }
+        guard let decodedEntries = try? JSONDecoder().decode([PatternEntry].self, from: e),
+              let decodedYarn = try? JSONDecoder().decode([YarnEntry].self, from: y) else { return }
+
+        isApplyingRemote = true
+        entries = decodedEntries
+        yarnStash = decodedYarn
+        // Persist the pulled data locally (these saves skip the cloud push).
+        save()
+        saveYarn()
+        isApplyingRemote = false
+
+        // Align local stamp with the remote one so pullIfNewer won't re-fire
+        // and we don't ping-pong a push back to iCloud.
+        localStamp = CloudSync.shared.remoteStamp
     }
 
     private func loadYarn() {
