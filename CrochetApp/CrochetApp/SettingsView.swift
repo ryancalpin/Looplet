@@ -169,7 +169,7 @@ struct SettingsView: View {
             Section("App") {
                 shortcutRow("⌘ ,", "Open Settings")
                 shortcutRow("⌘ ⌫", "Reset all counters")
-                shortcutRow("⌘ O", "Open pattern file")
+                shortcutRow("⌃⌘F", "Toggle Focus Mode")
             }
         }
         .formStyle(.grouped)

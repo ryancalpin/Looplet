@@ -735,7 +735,7 @@ struct EmptyMarkdownPlaceholder: View {
                 .fontWeight(.semibold)
                 .foregroundColor(.secondary)
 
-            Text("Open a Markdown file to view your crochet pattern here.\nUse **File → Open Pattern** or press **⌘O**.")
+            Text("Add a pattern from the sidebar — click the ＋ button or drag a Markdown, PDF, or text file in.")
                 .font(.callout)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
