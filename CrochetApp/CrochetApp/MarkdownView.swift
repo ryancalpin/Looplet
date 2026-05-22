@@ -330,6 +330,7 @@ struct MarkdownWebView: NSViewRepresentable {
     let bridge: AnnotationBridge
     var scrollToRow: Int = 0
     var abbreviationDict: [String: String] = [:]
+    var entryID: UUID? = nil
 
     func makeNSView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
@@ -353,16 +354,20 @@ struct MarkdownWebView: NSViewRepresentable {
 
         if scrollToRow != context.coordinator.lastScrollRow, scrollToRow > 0 {
             context.coordinator.lastScrollRow = scrollToRow
+            // Per-pattern seed so reopening mid-pattern re-locks onto the part the user
+            // was last on (window.__lastRowIdx is page-local and resets on reload).
+            let seedKey = "crochet.rowScrollIdx.\(entryID?.uuidString ?? "none")"
+            let seed = UserDefaults.standard.object(forKey: seedKey) as? Int ?? -1
             let js = """
             (function(){
                 var pat=new RegExp('\\\\b(Row|Rnd|Round)\\\\s+\(scrollToRow)\\\\b','i');
                 var els=document.querySelectorAll('p,li,h1,h2,h3,h4,h5,h6');
                 // Multi-part patterns restart numbering each part, so the same "Rnd N"
                 // appears multiple times. Pick the occurrence CLOSEST to where we last
-                // scrolled (tracked per-page) instead of always the first — so counting
-                // up then resetting to 1 follows into the next part rather than snapping
-                // back to part 1.
-                var last=(typeof window.__lastRowIdx==='number')?window.__lastRowIdx:-1;
+                // scrolled instead of always the first — so counting up then resetting
+                // to 1 follows into the next part rather than snapping back to part 1.
+                // Seed from the persisted position so this survives a reload.
+                var last=(typeof window.__lastRowIdx==='number')?window.__lastRowIdx:\(seed);
                 var best=-1,bestDist=Infinity;
                 for(var i=0;i<els.length;i++){
                     if(pat.test(els[i].textContent)){
@@ -374,9 +379,14 @@ struct MarkdownWebView: NSViewRepresentable {
                     els[best].scrollIntoView({behavior:'smooth',block:'start'});
                     window.__lastRowIdx=best;
                 }
+                return best;
             })();
             """
-            webView.evaluateJavaScript(js, completionHandler: nil)
+            webView.evaluateJavaScript(js) { result, _ in
+                if let idx = result as? Int, idx >= 0 {
+                    UserDefaults.standard.set(idx, forKey: seedKey)
+                }
+            }
         }
 
         if !abbreviationDict.isEmpty, abbreviationDict != context.coordinator.lastAbbreviationDict {
@@ -666,7 +676,8 @@ struct MarkdownView: View {
                     annotations: (library.activeEntry?.annotations ?? [:]),
                     bridge: bridge,
                     scrollToRow: scrollToRow,
-                    abbreviationDict: abbreviationDict
+                    abbreviationDict: abbreviationDict,
+                    entryID: library.activeEntryID
                 )
             }
         }
