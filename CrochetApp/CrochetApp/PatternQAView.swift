@@ -8,13 +8,15 @@ struct QAPair: Identifiable {
 
 @available(macOS 26.0, *)
 struct PatternQAView: View {
-    let service: PatternAIService
+    @ObservedObject var service: PatternAIService
+    let patternID: UUID
     let patternText: String
 
     @State private var question: String = ""
-    @State private var history: [QAPair] = []
     @State private var isAsking: Bool = false
     @State private var errorMessage: String? = nil
+
+    private var history: [QAPair] { service.qaHistory[patternID] ?? [] }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -71,6 +73,7 @@ struct PatternQAView: View {
                     }
                     .buttonStyle(.plain)
                     .disabled(question.isEmpty)
+                    .accessibilityLabel("Send question")
                 }
             }
         }
@@ -87,7 +90,7 @@ struct PatternQAView: View {
         Task {
             do {
                 let answer = try await service.answerQuestion(asked, patternText: patternText)
-                history.append(QAPair(question: asked, answer: answer))
+                service.qaHistory[patternID, default: []].append(QAPair(question: asked, answer: answer))
             } catch {
                 errorMessage = "Error: \(error.localizedDescription)"
             }

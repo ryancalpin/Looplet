@@ -32,6 +32,14 @@ final class AppSettings: ObservableObject {
 
     // MARK: - Appearance
 
+    /// In-app override for the system color scheme (System / Light / Dark).
+    @AppStorage("crochet.appearanceMode") var appearanceModeRaw: String = AppearanceMode.system.rawValue
+
+    var appearanceMode: AppearanceMode {
+        get { AppearanceMode(rawValue: appearanceModeRaw) ?? .system }
+        set { appearanceModeRaw = newValue.rawValue }
+    }
+
     /// Display size of the numeric counters in the counter bar.
     @AppStorage("crochet.counterSize") var counterSizeRaw: String = CounterSize.normal.rawValue
 
@@ -70,6 +78,31 @@ final class AppSettings: ObservableObject {
     var repeatColor: Color {
         get { Color(hex: repeatColorHex) ?? .teal }
         set { repeatColorHex = newValue.hexString }
+    }
+
+    // MARK: - Appearance mode enum
+
+    enum AppearanceMode: String, CaseIterable, Identifiable {
+        case system, light, dark
+
+        var id: String { rawValue }
+
+        var label: String {
+            switch self {
+            case .system: return "System"
+            case .light:  return "Light"
+            case .dark:   return "Dark"
+            }
+        }
+
+        /// Color scheme to force, or nil to follow the system setting.
+        var colorScheme: ColorScheme? {
+            switch self {
+            case .system: return nil
+            case .light:  return .light
+            case .dark:   return .dark
+            }
+        }
     }
 
     // MARK: - Counter size enum

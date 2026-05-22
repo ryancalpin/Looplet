@@ -35,6 +35,73 @@ struct MaterialsBreakdown: Codable {
     let notions: String
 }
 
+// MARK: - Guided-generation types
+//
+// These @Generable mirrors are used ONLY for the on-device model call so it returns
+// typed, structured output directly (instead of free text we fragile-parse). They map
+// to the plain Codable structs above, which stay OS-agnostic for persistence.
+
+@available(macOS 26.0, *)
+@Generable
+struct GeneratedSummary {
+    @Guide(description: "The pattern's name or title")
+    var patternName: String
+    @Guide(description: "Overall skill level", .anyOf(["Beginner", "Intermediate", "Advanced"]))
+    var skillLevel: String
+    @Guide(description: "Yarn weight and hook size as one short phrase")
+    var materials: String
+    @Guide(description: "Total number of rows or rounds if the pattern states one; otherwise the word Unknown")
+    var totalRows: String
+    @Guide(description: "Comma-separated list of the main stitches used")
+    var keyStitches: String
+}
+
+@available(macOS 26.0, *)
+@Generable
+struct GeneratedMaterials {
+    @Guide(description: "Yarn: weight class, fiber, color, and yardage if mentioned")
+    var yarn: String
+    @Guide(description: "Crochet hook size in mm and US letter")
+    var hook: String
+    @Guide(description: "Notions such as stitch markers, tapestry needle, safety eyes, buttons")
+    var notions: String
+}
+
+@available(macOS 26.0, *)
+@Generable
+struct GeneratedAbbreviation {
+    @Guide(description: "The abbreviation token exactly as written, e.g. sc")
+    var abbreviation: String
+    @Guide(description: "The full meaning, e.g. single crochet")
+    var meaning: String
+}
+
+@available(macOS 26.0, *)
+@Generable
+struct GeneratedAbbreviations {
+    @Guide(description: "Terminology convention the pattern follows", .anyOf(["US", "UK"]))
+    var convention: String
+    @Guide(description: "Every crochet abbreviation that appears in the pattern, with its meaning")
+    var entries: [GeneratedAbbreviation]
+}
+
+@available(macOS 26.0, *)
+@Generable
+struct GeneratedDifficulty {
+    @Guide(description: "Difficulty classification", .anyOf(["Beginner", "Intermediate", "Advanced"]))
+    var level: String
+    @Guide(description: "One short sentence explaining why")
+    var reason: String
+}
+
+/// User-facing error when on-device AI can't run.
+enum AIServiceError: LocalizedError {
+    case unavailable
+    var errorDescription: String? {
+        "Apple Intelligence isn't available on this Mac. Enable it in System Settings → Apple Intelligence & Siri to use AI insights."
+    }
+}
+
 // MARK: - Service
 
 @available(macOS 26.0, *)
@@ -46,6 +113,10 @@ final class PatternAIService: ObservableObject {
     @Published var isLoadingMaterials = false
     @Published var isLoadingDifficulty = false
     @Published var isLoadingTimeEstimate = false
+
+    /// Per-pattern Q&A conversation history, kept here (not in the panel view) so it
+    /// survives the AI panel being closed/reopened and switching between patterns.
+    @Published var qaHistory: [UUID: [QAPair]] = [:]
 
     private var summaryCache: [UUID: PatternSummary] = [:]
     private var abbreviationCache: [UUID: AbbreviationList] = [:]
@@ -61,38 +132,49 @@ final class PatternAIService: ObservableObject {
         timeEstimateCache.removeValue(forKey: patternID)
     }
 
+    /// Throw a clear, user-facing error if on-device AI can't run, instead of letting
+    /// a raw session failure surface.
+    private func ensureAvailable() throws {
+        guard case .available = SystemLanguageModel.default.availability else {
+            throw AIServiceError.unavailable
+        }
+    }
+
+    /// Deterministically derive an estimated time from a stated row/round count and the
+    /// user's rows-per-hour setting, so the figure is consistent rather than guessed.
+    static func estimatedTime(fromRows rows: String, rowsPerHour: Int) -> String {
+        let digits = rows.filter(\.isNumber)
+        guard let count = Int(digits), count > 0, rowsPerHour > 0 else { return "Unknown" }
+        let hours = Double(count) / Double(rowsPerHour)
+        if hours < 1 { return "About \(Int((hours * 60).rounded())) min" }
+        let rounded = (hours * 10).rounded() / 10
+        return "About \(rounded.formatted(.number.precision(.fractionLength(0...1)))) hr"
+    }
+
     // MARK: - Summary Card
 
     func generateSummary(patternID: UUID, patternText: String) async throws -> PatternSummary {
         if let cached = summaryCache[patternID] { return cached }
+        try ensureAvailable()
         isLoadingSummary = true
         defer { isLoadingSummary = false }
 
-        let session = LanguageModelSession()
+        let session = LanguageModelSession {
+            "You are a crochet expert who extracts accurate, structured metadata from crochet patterns."
+        }
+        let g = try await session.respond(
+            to: "Analyze this crochet pattern and extract its summary. If a value is genuinely not present, use the word Unknown.\n\nPattern:\n\(patternText)",
+            generating: GeneratedSummary.self
+        ).content
+
         let rowsPerHour = UserDefaults.standard.rowsPerHour
-        let prompt = """
-        You are a crochet expert. Read this pattern and reply with ONLY these 6 lines. \
-        Fill in each value after the colon. Use "Unknown" if you cannot determine a value.
-
-        Pattern: <name of the pattern>
-        Level: <Beginner, Intermediate, or Advanced>
-        Materials: <yarn weight, hook size — one line>
-        Rows: <total row/round count if stated, otherwise Unknown>
-        Time: <estimate using \(rowsPerHour) rows/hour if Rows is known, otherwise Unknown>
-        Stitches: <comma-separated main stitches used>
-
-        Crochet pattern to analyze:
-        \(patternText)
-        """
-        let response = try await session.respond(to: prompt)
-        let text = response.content
         let result = PatternSummary(
-            patternName: extractField("Pattern", from: text),
-            skillLevel: extractField("Level", from: text),
-            materials: extractField("Materials", from: text),
-            totalRows: extractField("Rows", from: text),
-            estimatedTime: extractField("Time", from: text),
-            keyStitches: extractField("Stitches", from: text)
+            patternName: g.patternName,
+            skillLevel: g.skillLevel,
+            materials: g.materials,
+            totalRows: g.totalRows,
+            estimatedTime: Self.estimatedTime(fromRows: g.totalRows, rowsPerHour: rowsPerHour),
+            keyStitches: g.keyStitches
         )
         summaryCache[patternID] = result
         return result
@@ -102,38 +184,22 @@ final class PatternAIService: ObservableObject {
 
     func generateAbbreviations(patternID: UUID, patternText: String) async throws -> AbbreviationList {
         if let cached = abbreviationCache[patternID] { return cached }
+        try ensureAvailable()
         isLoadingAbbreviations = true
         defer { isLoadingAbbreviations = false }
 
-        let session = LanguageModelSession()
-        let prompt = """
-        You are a crochet expert. Read the following crochet pattern and list every crochet abbreviation used.
-        First line: "Convention: US" or "Convention: UK" (detect which the pattern uses).
-        Then for each abbreviation, one line in the format "abbr — meaning".
-        Do not add any other text.
-
-        Pattern:
-        \(patternText)
-        """
-        let response = try await session.respond(to: prompt)
-        let text = response.content
-        let lines = text.components(separatedBy: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
-        var convention = "US"
-        var entries: [AbbreviationEntry] = []
-        for line in lines {
-            if line.lowercased().hasPrefix("convention:") {
-                convention = line.components(separatedBy: ":").dropFirst().joined(separator: ":").trimmingCharacters(in: .whitespaces)
-            } else if line.contains(" — ") {
-                let parts = line.components(separatedBy: " — ")
-                if parts.count >= 2 {
-                    entries.append(AbbreviationEntry(
-                        abbreviation: parts[0].trimmingCharacters(in: .whitespaces),
-                        meaning: parts[1...].joined(separator: " — ").trimmingCharacters(in: .whitespaces)
-                    ))
-                }
-            }
+        let session = LanguageModelSession {
+            "You are a crochet expert who identifies every crochet abbreviation in a pattern and its full meaning."
         }
-        let result = AbbreviationList(convention: convention, entries: entries)
+        let g = try await session.respond(
+            to: "List every crochet abbreviation used in this pattern with its meaning, and detect whether it uses US or UK terminology.\n\nPattern:\n\(patternText)",
+            generating: GeneratedAbbreviations.self
+        ).content
+
+        let result = AbbreviationList(
+            convention: g.convention,
+            entries: g.entries.map { AbbreviationEntry(abbreviation: $0.abbreviation, meaning: $0.meaning) }
+        )
         abbreviationCache[patternID] = result
         return result
     }
@@ -141,6 +207,7 @@ final class PatternAIService: ObservableObject {
     // MARK: - Pattern Q&A
 
     func answerQuestion(_ question: String, patternText: String) async throws -> String {
+        try ensureAvailable()
         let session = LanguageModelSession()
         let prompt = """
         You are a crochet expert. Answer the following question about the crochet pattern in 1–3 sentences. \
@@ -159,29 +226,19 @@ final class PatternAIService: ObservableObject {
 
     func extractMaterials(patternID: UUID, patternText: String) async throws -> MaterialsBreakdown {
         if let cached = materialsCache[patternID] { return cached }
+        try ensureAvailable()
         isLoadingMaterials = true
         defer { isLoadingMaterials = false }
 
-        let session = LanguageModelSession()
-        let prompt = """
-        You are a crochet expert. Extract the materials from the following pattern.
-        Reply ONLY with lines in the format "Field: Value". Do not add any other text.
+        let session = LanguageModelSession {
+            "You are a crochet expert who extracts the materials list from a pattern."
+        }
+        let g = try await session.respond(
+            to: "Extract the materials from this pattern. If a field isn't listed, say so briefly (e.g. \"Not specified\").\n\nPattern:\n\(patternText)",
+            generating: GeneratedMaterials.self
+        ).content
 
-        Fields:
-        Yarn: (weight class, fiber if mentioned, color if mentioned, yardage — or "Could not detect a materials section")
-        Hook: (size in mm and US letter — or "Not specified")
-        Notions: (stitch markers, tapestry needle, buttons, etc. — or "None listed")
-
-        Pattern:
-        \(patternText)
-        """
-        let response = try await session.respond(to: prompt)
-        let text = response.content
-        let result = MaterialsBreakdown(
-            yarn: extractField("Yarn", from: text),
-            hook: extractField("Hook", from: text),
-            notions: extractField("Notions", from: text)
-        )
+        let result = MaterialsBreakdown(yarn: g.yarn, hook: g.hook, notions: g.notions)
         materialsCache[patternID] = result
         return result
     }
@@ -190,21 +247,19 @@ final class PatternAIService: ObservableObject {
 
     func estimateDifficulty(patternID: UUID, patternText: String) async throws -> String {
         if let cached = difficultyCache[patternID] { return cached }
+        try ensureAvailable()
         isLoadingDifficulty = true
         defer { isLoadingDifficulty = false }
 
-        let session = LanguageModelSession()
-        let prompt = """
-        You are a crochet expert. Classify the following pattern as Beginner, Intermediate, or Advanced.
-        Reply with exactly one line: the classification followed by a dash and a 1-sentence explanation.
-        Example: "Intermediate — Uses bobble stitches and requires joining multiple motifs."
-        Do not add any other text.
+        let session = LanguageModelSession {
+            "You are a crochet expert who rates pattern difficulty."
+        }
+        let g = try await session.respond(
+            to: "Classify this pattern's difficulty and explain why in one short sentence.\n\nPattern:\n\(patternText)",
+            generating: GeneratedDifficulty.self
+        ).content
 
-        Pattern:
-        \(patternText)
-        """
-        let response = try await session.respond(to: prompt)
-        let result = response.content.trimmingCharacters(in: .whitespacesAndNewlines)
+        let result = "\(g.level) — \(g.reason)"
         difficultyCache[patternID] = result
         return result
     }
@@ -213,6 +268,7 @@ final class PatternAIService: ObservableObject {
 
     func estimateTime(patternID: UUID, patternText: String, rowGoal: Int, rowCount: Int) async throws -> String {
         if let cached = timeEstimateCache[patternID] { return cached }
+        try ensureAvailable()
         isLoadingTimeEstimate = true
         defer { isLoadingTimeEstimate = false }
 
@@ -239,19 +295,6 @@ final class PatternAIService: ObservableObject {
         let result = response.content.trimmingCharacters(in: .whitespacesAndNewlines)
         timeEstimateCache[patternID] = result
         return result
-    }
-
-    // MARK: - Helpers
-
-    private func extractField(_ field: String, from text: String) -> String {
-        let prefix = "\(field):".lowercased()
-        let lines = text.components(separatedBy: "\n")
-        for line in lines {
-            if line.lowercased().hasPrefix(prefix) {
-                return line.dropFirst(field.count + 1).trimmingCharacters(in: .whitespaces)
-            }
-        }
-        return "Unknown"
     }
 }
 

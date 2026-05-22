@@ -81,7 +81,12 @@ struct PatternLibraryView: View {
                 _ = provider.loadObject(ofClass: URL.self) { url, _ in
                     guard let url else { return }
                     let allowedExt: Set<String> = ["md", "markdown", "txt", "text", "rtf", "pdf"]
-                    guard allowedExt.contains(url.pathExtension.lowercased()) else { return }
+                    guard allowedExt.contains(url.pathExtension.lowercased()) else {
+                        DispatchQueue.main.async {
+                            importError = "\"\(url.lastPathComponent)\" isn't a supported file type. Drop a Markdown, PDF, RTF, or text file."
+                        }
+                        return
+                    }
                     DispatchQueue.main.async {
                         if let newID = library.add(url: url) { selectEntry(id: newID) }
                     }
@@ -133,6 +138,7 @@ struct PatternLibraryView: View {
                 Image(systemName: "plus").font(.system(size: 16, weight: .medium))
             }
             .buttonStyle(.plain).foregroundColor(accentColor).help("Add a pattern file")
+            .accessibilityLabel("Add pattern")
         }
         .padding(.horizontal, 12).padding(.vertical, 10)
         .background(Color.surfaceRaised)
@@ -150,6 +156,7 @@ struct PatternLibraryView: View {
                     Image(systemName: "xmark.circle.fill").font(.system(size: 12)).foregroundColor(.secondary)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Clear search")
             }
         }
         .padding(.horizontal, 10).padding(.vertical, 6)
@@ -245,6 +252,7 @@ struct PatternLibraryView: View {
                     }
                 }
                 Divider()
+                Button("Export Insights…") { PatternExporter.exportToFile(entry) }
                 Button("Export Notes…") { exportNotes(for: entry) }
                 Divider()
                 Button("Remove from Library", role: .destructive) { entryToRemove = entry }

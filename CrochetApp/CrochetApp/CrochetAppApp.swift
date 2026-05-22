@@ -5,11 +5,13 @@ struct CrochetAppApp: App {
     @StateObject private var library = PatternLibrary()
     @StateObject private var store = CounterStore()
     @StateObject private var sessionTimer = SessionTimer()
+    @ObservedObject private var settings = AppSettings.shared
 
     var body: some Scene {
         WindowGroup {
             ContentView(library: library, store: store, sessionTimer: sessionTimer)
                 .frame(minWidth: 700, minHeight: 500)
+                .preferredColorScheme(settings.appearanceMode.colorScheme)
                 .onAppear {
                     store.library = library
                 }

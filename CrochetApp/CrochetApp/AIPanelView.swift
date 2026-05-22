@@ -28,7 +28,7 @@ struct AIPanelView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     SectionCard(title: "Ask a Question", isLoading: false, onRegenerate: nil) {
-                        PatternQAView(service: service, patternText: patternText)
+                        PatternQAView(service: service, patternID: entry.id, patternText: patternText)
                     }
                     Divider().padding(.horizontal, 12)
                     SectionCard(title: "Summary", isLoading: service.isLoadingSummary, onRegenerate: regenSummary) {
@@ -83,6 +83,7 @@ struct AIPanelView: View {
                     .foregroundColor(.secondary).font(.system(size: 16))
             }
             .buttonStyle(.plain).help("Close AI panel")
+            .accessibilityLabel("Close AI panel")
         }
         .padding(.horizontal, 12).padding(.vertical, 8)
         .background(Color.surface)
