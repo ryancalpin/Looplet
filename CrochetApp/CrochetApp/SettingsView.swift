@@ -71,6 +71,18 @@ struct SettingsView: View {
 
     private var appearanceTab: some View {
         Form {
+            Section("Theme") {
+                Picker("Appearance", selection: Binding(
+                    get: { settings.appearanceMode },
+                    set: { settings.appearanceMode = $0 }
+                )) {
+                    ForEach(AppSettings.AppearanceMode.allCases) { mode in
+                        Text(mode.label).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+            }
+
             Section("Counter Bar") {
                 Toggle("Show session timer", isOn: $settings.showTimer)
             }
