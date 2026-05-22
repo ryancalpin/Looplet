@@ -5,7 +5,14 @@ import SwiftUI
 final class AppSettings: ObservableObject {
 
     static let shared = AppSettings()
-    private init() {}
+
+    private var defaultsObserver: NSObjectProtocol?
+    private init() {
+        defaultsObserver = NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification, object: nil, queue: .main
+        ) { [weak self] _ in self?.objectWillChange.send() }
+    }
+    deinit { if let o = defaultsObserver { NotificationCenter.default.removeObserver(o) } }
 
     // MARK: - Counting
 
