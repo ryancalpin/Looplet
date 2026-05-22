@@ -47,6 +47,10 @@ final class PatternAIService: ObservableObject {
     @Published var isLoadingDifficulty = false
     @Published var isLoadingTimeEstimate = false
 
+    /// Per-pattern Q&A conversation history, kept here (not in the panel view) so it
+    /// survives the AI panel being closed/reopened and switching between patterns.
+    @Published var qaHistory: [UUID: [QAPair]] = [:]
+
     private var summaryCache: [UUID: PatternSummary] = [:]
     private var abbreviationCache: [UUID: AbbreviationList] = [:]
     private var materialsCache: [UUID: MaterialsBreakdown] = [:]

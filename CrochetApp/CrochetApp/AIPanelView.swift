@@ -28,7 +28,7 @@ struct AIPanelView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     SectionCard(title: "Ask a Question", isLoading: false, onRegenerate: nil) {
-                        PatternQAView(service: service, patternText: patternText)
+                        PatternQAView(service: service, patternID: entry.id, patternText: patternText)
                     }
                     Divider().padding(.horizontal, 12)
                     SectionCard(title: "Summary", isLoading: service.isLoadingSummary, onRegenerate: regenSummary) {
