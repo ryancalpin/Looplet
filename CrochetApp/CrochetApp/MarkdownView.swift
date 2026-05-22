@@ -357,10 +357,22 @@ struct MarkdownWebView: NSViewRepresentable {
             (function(){
                 var pat=new RegExp('\\\\b(Row|Rnd|Round)\\\\s+\(scrollToRow)\\\\b','i');
                 var els=document.querySelectorAll('p,li,h1,h2,h3,h4,h5,h6');
+                // Multi-part patterns restart numbering each part, so the same "Rnd N"
+                // appears multiple times. Pick the occurrence CLOSEST to where we last
+                // scrolled (tracked per-page) instead of always the first — so counting
+                // up then resetting to 1 follows into the next part rather than snapping
+                // back to part 1.
+                var last=(typeof window.__lastRowIdx==='number')?window.__lastRowIdx:-1;
+                var best=-1,bestDist=Infinity;
                 for(var i=0;i<els.length;i++){
                     if(pat.test(els[i].textContent)){
-                        els[i].scrollIntoView({behavior:'smooth',block:'start'});break;
+                        var d=Math.abs(i-last);
+                        if(d<bestDist){bestDist=d;best=i;}
                     }
+                }
+                if(best!==-1){
+                    els[best].scrollIntoView({behavior:'smooth',block:'start'});
+                    window.__lastRowIdx=best;
                 }
             })();
             """
