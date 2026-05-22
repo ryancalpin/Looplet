@@ -10,8 +10,6 @@ struct ContentView: View {
     @State private var aiPanelWidth: CGFloat = 280
     @State private var abbreviationDict: [String: String] = [:]
     @State private var patternScrollToRow: Int = 0
-    @State private var bannerDifficulty: String? = nil
-    @State private var bannerTotalRows: String? = nil
 
     var body: some View {
         HStack(spacing: 0) {
@@ -30,15 +28,6 @@ struct ContentView: View {
                     entry: activeEntryBinding,
                     showAIPanel: $showAIPanel
                 )
-
-                if let entry = library.activeEntry {
-                    PatternStatsBannerView(
-                        entry: entry,
-                        store: store,
-                        aiDifficulty: bannerDifficulty,
-                        aiTotalRows: bannerTotalRows
-                    )
-                }
 
                 HStack(spacing: 0) {
                     PatternContentView(
@@ -60,9 +49,7 @@ struct ContentView: View {
                             patternText: text,
                             library: library,
                             showAIPanel: $showAIPanel,
-                            abbreviationDict: $abbreviationDict,
-                            bannerDifficulty: $bannerDifficulty,
-                            bannerTotalRows: $bannerTotalRows
+                            abbreviationDict: $abbreviationDict
                         )
                         .frame(width: showAIPanel ? aiPanelWidth : 0)
                         .opacity(showAIPanel ? 1 : 0)
@@ -81,8 +68,6 @@ struct ContentView: View {
         .onChange(of: library.activeEntryID) { _ in
             abbreviationDict = [:]
             patternScrollToRow = 0
-            bannerDifficulty = nil
-            bannerTotalRows = nil
         }
         .onChange(of: store.rowCount) { row in
             patternScrollToRow = row

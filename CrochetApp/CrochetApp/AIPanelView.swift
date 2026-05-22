@@ -7,8 +7,6 @@ struct AIPanelView: View {
     @ObservedObject var library: PatternLibrary
     @Binding var showAIPanel: Bool
     @Binding var abbreviationDict: [String: String]
-    @Binding var bannerDifficulty: String?
-    @Binding var bannerTotalRows: String?
 
     @StateObject private var service = PatternAIService()
 
@@ -101,8 +99,6 @@ struct AIPanelView: View {
         summary = nil; abbreviationList = nil; materials = nil; difficulty = nil; timeEstimate = nil
         summaryError = nil; abbreviationsError = nil; materialsError = nil; difficultyError = nil; timeError = nil
         abbreviationDict = [:]
-        bannerDifficulty = nil
-        bannerTotalRows = nil
     }
 
     private func loadAll() {
@@ -112,7 +108,6 @@ struct AIPanelView: View {
 
         if let s = e.aiSummary {
             summary = s
-            bannerTotalRows = s.totalRows == "Unknown" ? nil : s.totalRows
         } else {
             loadSummary()
         }
@@ -132,7 +127,6 @@ struct AIPanelView: View {
 
         if let d = e.aiDifficulty {
             difficulty = d
-            bannerDifficulty = d
         } else {
             loadDifficulty()
         }
@@ -147,7 +141,7 @@ struct AIPanelView: View {
     private func regenSummary() {
         service.clearCache(for: entry.id)
         library.clearAICache(for: entry.id)
-        summary = nil; summaryError = nil; bannerTotalRows = nil
+        summary = nil; summaryError = nil
         loadSummary()
     }
     private func regenAbbreviations() {
@@ -165,7 +159,7 @@ struct AIPanelView: View {
     private func regenDifficulty() {
         service.clearCache(for: entry.id)
         library.clearAICache(for: entry.id)
-        difficulty = nil; difficultyError = nil; bannerDifficulty = nil
+        difficulty = nil; difficultyError = nil
         loadDifficulty()
     }
     private func regenTime() {
@@ -236,7 +230,6 @@ struct AIPanelView: View {
         Task { do {
             let result = try await service.generateSummary(patternID: entry.id, patternText: patternText)
             summary = result
-            bannerTotalRows = result.totalRows == "Unknown" ? nil : result.totalRows
             library.updateAICache(for: entry.id, summary: result)
         } catch { summaryError = error.localizedDescription } }
     }
@@ -259,7 +252,6 @@ struct AIPanelView: View {
         Task { do {
             let result = try await service.estimateDifficulty(patternID: entry.id, patternText: patternText)
             difficulty = result
-            bannerDifficulty = result
             library.updateAICache(for: entry.id, difficulty: result)
         } catch { difficultyError = error.localizedDescription } }
     }
