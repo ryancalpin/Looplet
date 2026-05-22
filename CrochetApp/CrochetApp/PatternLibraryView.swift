@@ -80,6 +80,8 @@ struct PatternLibraryView: View {
             for provider in providers {
                 _ = provider.loadObject(ofClass: URL.self) { url, _ in
                     guard let url else { return }
+                    let allowedExt: Set<String> = ["md", "markdown", "txt", "text", "rtf", "pdf"]
+                    guard allowedExt.contains(url.pathExtension.lowercased()) else { return }
                     DispatchQueue.main.async {
                         if let newID = library.add(url: url) { selectEntry(id: newID) }
                     }
