@@ -239,7 +239,7 @@ struct CounterBarView: View {
             HStack(spacing: 6) {
                 Image(systemName: settings.audioCueEnabled ? "speaker.wave.2.fill" : "speaker.slash")
                     .font(.callout)
-                Text("Row Cue").font(.callout)
+                Text("Sound").font(.callout)
             }
             .foregroundColor(settings.audioCueEnabled ? Color.appAccent : .textSecondary)
             .padding(.horizontal, 8).padding(.vertical, 5)
@@ -247,8 +247,8 @@ struct CounterBarView: View {
             .clipShape(RoundedRectangle(cornerRadius: 6))
         }
         .buttonStyle(.plain)
-        .help(settings.audioCueEnabled ? "Row audio cue on — click to disable" : "Row audio cue off — click to enable")
-        .accessibilityLabel("Row audio cue")
+        .help(settings.audioCueEnabled ? "Counter sounds on — click to mute" : "Counter sounds off — click to enable (configure in Settings)")
+        .accessibilityLabel("Counter sounds")
         .accessibilityValue(settings.audioCueEnabled ? "On" : "Off")
     }
 
@@ -319,7 +319,7 @@ struct CounterBarView: View {
             Button(timer.isRunning ? "Pause Timer" : "Resume Timer") { timer.togglePause() }
             Button("Reset Timer") { timer.reset() }
             Divider()
-            Button(settings.audioCueEnabled ? "Disable Row Cue" : "Enable Row Cue") { settings.audioCueEnabled.toggle() }
+            Button(settings.audioCueEnabled ? "Mute Counter Sounds" : "Enable Counter Sounds") { settings.audioCueEnabled.toggle() }
             Divider()
             Button("Enter Focus Mode") { NotificationCenter.default.post(name: .toggleFocusMode, object: nil) }
             Button("Reset Counters…") { showResetConfirmation = true }

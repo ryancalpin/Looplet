@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 /// Singleton that owns all user-configurable preferences, backed by UserDefaults via @AppStorage.
 /// Observe it with `@ObservedObject private var settings = AppSettings.shared` in any View.
@@ -70,8 +71,38 @@ final class AppSettings: ObservableObject {
 
     // MARK: - Audio
 
-    /// Play a subtle tick sound when incrementing a row.
+    /// Master toggle — when off, no counter sounds play regardless of the per-event choices.
     @AppStorage("crochet.audioCueEnabled") var audioCueEnabled: Bool = false
+
+    /// Per-event sound choices (system sounds). Defaults keep the old behavior:
+    /// a "Tink" on row increment, everything else silent.
+    @AppStorage("crochet.rowUpSound")     private var rowUpSoundRaw     = SoundEffect.tink.rawValue
+    @AppStorage("crochet.rowDownSound")   private var rowDownSoundRaw   = SoundEffect.none.rawValue
+    @AppStorage("crochet.stitchUpSound")  private var stitchUpSoundRaw  = SoundEffect.pop.rawValue
+    @AppStorage("crochet.stitchDownSound") private var stitchDownSoundRaw = SoundEffect.none.rawValue
+
+    var rowUpSound: SoundEffect {
+        get { SoundEffect(rawValue: rowUpSoundRaw) ?? .tink }
+        set { rowUpSoundRaw = newValue.rawValue }
+    }
+    var rowDownSound: SoundEffect {
+        get { SoundEffect(rawValue: rowDownSoundRaw) ?? .none }
+        set { rowDownSoundRaw = newValue.rawValue }
+    }
+    var stitchUpSound: SoundEffect {
+        get { SoundEffect(rawValue: stitchUpSoundRaw) ?? .pop }
+        set { stitchUpSoundRaw = newValue.rawValue }
+    }
+    var stitchDownSound: SoundEffect {
+        get { SoundEffect(rawValue: stitchDownSoundRaw) ?? .none }
+        set { stitchDownSoundRaw = newValue.rawValue }
+    }
+
+    /// Play a per-event sound, respecting the master toggle.
+    func playCounterSound(_ sound: SoundEffect) {
+        guard audioCueEnabled else { return }
+        sound.play()
+    }
 
     // MARK: - Onboarding
 
@@ -210,4 +241,32 @@ final class AppSettings: ObservableObject {
         .init(name: "Sunset",  rowHex: "#E06021", stitchHex: "#BF3349", repeatHex: "#6A1B9A"),
         .init(name: "Mono",    rowHex: "#737373", stitchHex: "#A6A6A6", repeatHex: "#555555"),
     ]
+}
+
+// MARK: - Counter sound effects
+
+/// Selectable counter sounds, backed by the built-in macOS system sounds in
+/// /System/Library/Sounds (loaded by name via NSSound). `none` is silent.
+enum SoundEffect: String, CaseIterable, Identifiable {
+    case none, tink, pop, morse, glass, bottle, frog, funk, hero, ping, purr, submarine, blow, sosumi
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .none: return "None"
+        default:    return rawValue.capitalized
+        }
+    }
+
+    /// NSSound name (matches the system sound file), or nil for silence.
+    var systemName: String? {
+        self == .none ? nil : rawValue.capitalized
+    }
+
+    /// Play the sound once (no-op for `none`).
+    func play() {
+        guard let name = systemName else { return }
+        NSSound(named: name)?.play()
+    }
 }

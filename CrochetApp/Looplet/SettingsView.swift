@@ -31,6 +31,17 @@ struct SettingsView: View {
                 Toggle("Auto-reset stitches when incrementing row", isOn: $settings.autoResetStitches)
                     .help("When on, pressing + on ROW resets the stitch counter to 0.")
             }
+            Section("Counter Sounds") {
+                Toggle("Play counter sounds", isOn: $settings.audioCueEnabled)
+                if settings.audioCueEnabled {
+                    soundPicker("Row +",    get: { settings.rowUpSound },     set: { settings.rowUpSound = $0 })
+                    soundPicker("Row −",    get: { settings.rowDownSound },   set: { settings.rowDownSound = $0 })
+                    soundPicker("Stitch +", get: { settings.stitchUpSound },  set: { settings.stitchUpSound = $0 })
+                    soundPicker("Stitch −", get: { settings.stitchDownSound }, set: { settings.stitchDownSound = $0 })
+                    Text("Pick a sound for each action. Selecting one plays a preview.")
+                        .font(.caption).foregroundColor(.secondary)
+                }
+            }
             Section("Default Goals for New Patterns") {
                 HStack {
                     Text("Row goal")
@@ -54,6 +65,20 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+    }
+
+    /// A sound picker that previews the chosen sound on selection.
+    private func soundPicker(_ label: String,
+                             get: @escaping () -> SoundEffect,
+                             set: @escaping (SoundEffect) -> Void) -> some View {
+        Picker(label, selection: Binding(get: get, set: { newValue in
+            set(newValue)
+            newValue.play()
+        })) {
+            ForEach(SoundEffect.allCases) { effect in
+                Text(effect.label).tag(effect)
+            }
+        }
     }
 
     // MARK: - Pace & AI

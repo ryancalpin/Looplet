@@ -31,15 +31,14 @@ class CounterStore: ObservableObject {
     func incrementRow() {
         rowCount += 1
         if autoReset { stitchCount = 0 }
-        if AppSettings.shared.audioCueEnabled {
-            NSSound(named: "Tink")?.play()
-        }
+        AppSettings.shared.playCounterSound(AppSettings.shared.rowUpSound)
         sync()
     }
 
     func endRow() {
         rowCount += 1
         stitchCount = 0
+        AppSettings.shared.playCounterSound(AppSettings.shared.rowUpSound)
         sync()
     }
 
@@ -47,6 +46,7 @@ class CounterStore: ObservableObject {
         guard rowCount > 0 else { return }
         rowCount -= 1
         if autoReset { stitchCount = 0 }
+        AppSettings.shared.playCounterSound(AppSettings.shared.rowDownSound)
         sync()
     }
 
@@ -57,6 +57,9 @@ class CounterStore: ObservableObject {
         if let goal = library?.activeEntry?.stitchGoal, goal > 0, stitchCount >= goal {
             rowCount += 1
             stitchCount = 0
+            AppSettings.shared.playCounterSound(AppSettings.shared.rowUpSound)
+        } else {
+            AppSettings.shared.playCounterSound(AppSettings.shared.stitchUpSound)
         }
         sync()
     }
@@ -64,6 +67,7 @@ class CounterStore: ObservableObject {
     func decrementStitch() {
         guard stitchCount > 0 else { return }
         stitchCount -= 1
+        AppSettings.shared.playCounterSound(AppSettings.shared.stitchDownSound)
         sync()
     }
 
