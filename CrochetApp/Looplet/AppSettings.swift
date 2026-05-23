@@ -81,8 +81,7 @@ final class AppSettings: ObservableObject {
     // MARK: - Support
 
     /// Web form opened by the "Send Feedback" / "Suggestions" action.
-    /// TODO: replace with the real Looplet feedback form URL.
-    static let feedbackURLString = "https://looplet.app/feedback"
+    static let feedbackURLString = "https://ryancalpin.notion.site/2ac2695cbc034d5eab9dfa2cf666586d"
 
     // MARK: - App theme (coordinated accent + background palette)
 
