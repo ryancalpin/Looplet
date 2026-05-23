@@ -15,6 +15,8 @@ struct PatternLibraryView: View {
     @State private var showAddYarn = false
     @State private var showAddTag = false
     @State private var tagTargetID: UUID? = nil
+    @State private var renameTarget: PatternEntry? = nil
+    @State private var renameText: String = ""
 
     private var accentColor: Color { settings.rowColor }
 
@@ -124,6 +126,9 @@ struct PatternLibraryView: View {
             if let id = tagTargetID, let entry = library.entries.first(where: { $0.id == id }) {
                 AddTagSheet(entry: entry, library: library)
             }
+        }
+        .sheet(item: $renameTarget) { entry in
+            RenameSheet(entry: entry, text: $renameText, library: library)
         }
     }
 
@@ -239,6 +244,10 @@ struct PatternLibraryView: View {
             .onTapGesture { selectEntry(id: entry.id) }
             .contextMenu {
                 Button(entry.isPinned ? "Unpin" : "Pin") { library.togglePin(entryID: entry.id) }
+                Button("Rename…") {
+                    renameText = entry.displayName
+                    renameTarget = entry
+                }
                 Divider()
                 Button("Add Tag…") {
                     tagTargetID = entry.id
@@ -432,6 +441,38 @@ struct AddTagSheet: View {
 
     private func save() {
         library.addTag(tagText, to: entry.id)
+        dismiss()
+    }
+}
+
+// MARK: - Rename Sheet
+
+struct RenameSheet: View {
+    let entry: PatternEntry
+    @Binding var text: String
+    @ObservedObject var library: PatternLibrary
+    @Environment(\.dismiss) private var dismiss
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Rename Pattern").font(.headline)
+            TextField("Pattern name", text: $text)
+                .textFieldStyle(.roundedBorder).focused($focused).onSubmit { save() }
+            HStack {
+                Button("Cancel") { dismiss() }.buttonStyle(.bordered)
+                Spacer()
+                Button("Save") { save() }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(text.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
+        .padding(20).frame(width: 300)
+        .onAppear { focused = true }
+    }
+
+    private func save() {
+        library.rename(entryID: entry.id, to: text)
         dismiss()
     }
 }
