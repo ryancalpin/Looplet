@@ -6,7 +6,7 @@ import StoreKit
 enum Pro {
     /// Non-consumable unlock. Must match the product configured in App Store Connect
     /// (and Looplet.storekit for local testing).
-    static let productID = "com.ryancalpin.Looplet.pro"
+    static let productID = "looplet_pro001"
 
     /// Free tier may keep this many patterns in the library at once (concurrent).
     /// Deleting a pattern frees a slot.
