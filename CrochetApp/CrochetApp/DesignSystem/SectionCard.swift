@@ -11,25 +11,37 @@ struct SectionCard<Content: View>: View {
         DisclosureGroup(isExpanded: $expanded) {
             Group {
                 if isLoading {
-                    HStack { ProgressView().scaleEffect(0.7); Text("Generating…").font(Typo.metadata).foregroundColor(.textSecondary) }
-                        .padding(.vertical, 8).frame(maxWidth: .infinity, alignment: .leading)
+                    HStack(spacing: 8) {
+                        ProgressView().scaleEffect(0.7)
+                        Text("Generating…").font(Typo.metadata).foregroundColor(.textSecondary)
+                    }
+                    .padding(.vertical, 8).frame(maxWidth: .infinity, alignment: .leading)
                 } else {
-                    content().padding(.top, 4)
+                    content().padding(.top, 8)
                 }
             }
-            .padding(.leading, 4)
         } label: {
             HStack {
-                Text(title).font(Typo.sectionTitle).foregroundColor(.textPrimary)
+                Text(title).font(Typo.cardTitle).foregroundColor(.textPrimary)
                 Spacer()
                 if !isLoading, let onRegenerate {
                     Button(action: onRegenerate) {
-                        Image(systemName: "arrow.clockwise").imageScale(.small).foregroundColor(.textSecondary)
+                        Image(systemName: "arrow.clockwise").imageScale(.medium).foregroundColor(.textSecondary)
                     }.buttonStyle(.plain).help("Regenerate this section")
                     .accessibilityLabel("Regenerate \(title)")
                 }
             }
         }
-        .padding(.horizontal, 12).padding(.vertical, 6)
+        .padding(.horizontal, 14).padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color.surfaceRaised)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .strokeBorder(Color.dividerToken.opacity(0.6), lineWidth: 1)
+                )
+                .shadow(color: Color.black.opacity(0.18), radius: 4, x: 0, y: 1)
+        )
+        .padding(.horizontal, 8).padding(.vertical, 4)
     }
 }

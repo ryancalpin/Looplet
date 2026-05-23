@@ -24,7 +24,7 @@ struct CounterBarView: View {
     var body: some View {
         GeometryReader { geo in
             let compact = geo.size.width < compactBreakpoint
-            HStack(spacing: 10) {
+            HStack(spacing: 12) {
                 rowPill
                 stitchPill
                 if entry?.showRepeatCounter == true {
@@ -35,30 +35,32 @@ struct CounterBarView: View {
                     rowProgressBar(current: store.rowCount, goal: goal)
                 }
 
-                Spacer(minLength: 4)
+                Spacer(minLength: 8)
 
                 if compact {
                     overflowMenu
                 } else {
                     audioCueButton
                     if settings.showTimer {
-                        Divider().frame(height: 30)
+                        Divider().frame(height: 28)
                         timerView
                     }
-                    Divider().frame(height: 30)
+                    Divider().frame(height: 28)
                     resetButton
                     if #available(macOS 26.0, *) {
-                        Divider().frame(height: 30)
+                        Divider().frame(height: 28)
                         aiToggleButton
                     }
                 }
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 16)
             .frame(maxHeight: .infinity, alignment: .center)
         }
-        .frame(height: pillHeight + 16)
-        .background(Color.surface)
-        .overlay(alignment: .bottom) { Divider() }
+        .frame(height: pillHeight + 20)
+        .background(Color.surfaceRaised)
+        .overlay(alignment: .bottom) { Divider().background(Color.dividerToken) }
+        .shadow(color: Color.black.opacity(0.12), radius: 3, x: 0, y: 1)
+        .zIndex(1)
         .confirmationDialog(
             "Reset counters?",
             isPresented: $showResetConfirmation,
@@ -190,10 +192,10 @@ struct CounterBarView: View {
     @ViewBuilder
     private func rowProgressBar(current: Int, goal: Int) -> some View {
         let fraction = min(Double(current) / Double(goal), 1.0)
-        let fill = settings.rowColor.legible(in: colorScheme)
-        VStack(alignment: .leading, spacing: 2) {
+        let fill = Color.appAccent
+        VStack(alignment: .leading, spacing: 4) {
             Text("\(current) / \(goal) rows")
-                .font(.system(size: 10)).foregroundColor(.textSecondary)
+                .font(Typo.metadata).foregroundColor(.textSecondary)
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 3).fill(fill.opacity(0.2)).frame(height: 6)
@@ -210,15 +212,15 @@ struct CounterBarView: View {
     // MARK: - Timer
 
     private var timerView: some View {
-        HStack(spacing: 5) {
+        HStack(spacing: 6) {
             Image(systemName: timer.isRunning ? "timer" : "pause.circle")
-                .font(.system(size: 11)).foregroundColor(.secondary)
+                .font(.callout).foregroundColor(.textSecondary)
             Text(timer.displayString)
-                .font(.system(size: 12, weight: .medium, design: .monospaced))
-                .foregroundColor(.secondary)
+                .font(Typo.monoReadout)
+                .foregroundColor(.textSecondary)
                 .animation(nil, value: timer.displayString)
         }
-        .padding(.horizontal, 7).padding(.vertical, 4)
+        .padding(.horizontal, 8).padding(.vertical, 5)
         .background(RoundedRectangle(cornerRadius: 6).fill(Color.surfaceRaised))
         .help(timer.isRunning ? "Click to pause" : "Click to resume")
         .onTapGesture { timer.togglePause() }
@@ -232,14 +234,14 @@ struct CounterBarView: View {
 
     private var audioCueButton: some View {
         Button { settings.audioCueEnabled.toggle() } label: {
-            HStack(spacing: 4) {
+            HStack(spacing: 6) {
                 Image(systemName: settings.audioCueEnabled ? "speaker.wave.2.fill" : "speaker.slash")
-                    .font(.system(size: 11))
-                Text("Row Cue").font(.system(size: 11))
+                    .font(.callout)
+                Text("Row Cue").font(.callout)
             }
-            .foregroundColor(settings.audioCueEnabled ? rowColor : .secondary)
-            .padding(.horizontal, 7).padding(.vertical, 4)
-            .background(settings.audioCueEnabled ? rowColor.opacity(0.12) : Color.clear)
+            .foregroundColor(settings.audioCueEnabled ? Color.appAccent : .textSecondary)
+            .padding(.horizontal, 8).padding(.vertical, 5)
+            .background(settings.audioCueEnabled ? Color.appAccent.opacity(0.12) : Color.clear)
             .clipShape(RoundedRectangle(cornerRadius: 6))
         }
         .buttonStyle(.plain)
@@ -251,25 +253,35 @@ struct CounterBarView: View {
     // MARK: - Reset button
 
     private var resetButton: some View {
-        Button("Reset") { showResetConfirmation = true }
-            .buttonStyle(.bordered)
-            .tint(.red)
-            .controlSize(.small)
+        Button { showResetConfirmation = true } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "arrow.counterclockwise").font(.callout)
+                Text("Reset").font(.callout)
+            }
+            .foregroundColor(.textSecondary)
+            .padding(.horizontal, 8).padding(.vertical, 5)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help("Reset row and stitch counters")
+        .accessibilityLabel("Reset counters")
     }
 
     // MARK: - AI toggle
 
     @available(macOS 26.0, *)
     private var aiToggleButton: some View {
-        Button { showAIPanel.toggle() } label: {
-            HStack(spacing: 4) {
-                Image(systemName: "sparkles").font(.system(size: 12, weight: .semibold))
-                Text("AI").font(.system(size: 11, weight: .semibold))
+        let aiAccent = Color.appAccent
+        return Button { showAIPanel.toggle() } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "sparkles").font(.system(.callout, weight: .semibold))
+                Text("AI").font(.system(.callout, weight: .semibold))
             }
-            .foregroundColor(showAIPanel ? .purple : .secondary)
-            .padding(.horizontal, 7).padding(.vertical, 4)
-            .background(showAIPanel ? Color.purple.opacity(0.12) : Color.clear)
-            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .foregroundColor(showAIPanel ? .white : aiAccent)
+            .padding(.horizontal, 12).padding(.vertical, 5)
+            .background(
+                Capsule().fill(showAIPanel ? aiAccent : aiAccent.opacity(0.15))
+            )
         }
         .buttonStyle(.plain)
         .help(showAIPanel ? "Close AI panel" : "Open AI panel")
@@ -300,16 +312,12 @@ struct CounterBarView: View {
             }
         } label: {
             Image(systemName: "ellipsis.circle")
-                .font(.system(size: 17))
-                .foregroundColor(.secondary)
+                .font(.title3)
+                .foregroundColor(.textSecondary)
         }
         .menuStyle(.borderlessButton)
         .fixedSize()
     }
-
-    // MARK: - Colors
-
-    private var rowColor: Color { settings.rowColor.legible(in: colorScheme) }
 }
 
 // MARK: - GoalInputPopover
