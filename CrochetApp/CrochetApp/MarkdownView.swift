@@ -233,12 +233,12 @@ struct MarkdownConverter {
           }
           @media (prefers-color-scheme: dark) {
             :root {
-              --bg: #16151A;
-              --fg: #E8D5C4;
-              --muted: #9A92A6;
+              --bg: #1C1813;
+              --fg: #ECE0D2;
+              --muted: #A99E8E;
               --accent: \(accentHex);
-              --border: #2A2730;
-              --raised: #211F28;
+              --border: #302A21;
+              --raised: #29241D;
               --row-alt: rgba(255, 255, 255, 0.035);
             }
           }

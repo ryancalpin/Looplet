@@ -34,7 +34,13 @@ struct SectionCard<Content: View>: View {
         }
         .padding(.horizontal, 14).padding(.vertical, 10)
         .background(
-            RoundedRectangle(cornerRadius: 10).fill(Color.surfaceRaised)
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color.surfaceRaised)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .strokeBorder(Color.dividerToken.opacity(0.6), lineWidth: 1)
+                )
+                .shadow(color: Color.black.opacity(0.18), radius: 4, x: 0, y: 1)
         )
         .padding(.horizontal, 8).padding(.vertical, 4)
     }

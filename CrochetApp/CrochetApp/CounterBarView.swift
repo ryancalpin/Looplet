@@ -57,8 +57,10 @@ struct CounterBarView: View {
             .frame(maxHeight: .infinity, alignment: .center)
         }
         .frame(height: pillHeight + 20)
-        .background(Color.surface)
+        .background(Color.surfaceRaised)
         .overlay(alignment: .bottom) { Divider().background(Color.dividerToken) }
+        .shadow(color: Color.black.opacity(0.12), radius: 3, x: 0, y: 1)
+        .zIndex(1)
         .confirmationDialog(
             "Reset counters?",
             isPresented: $showResetConfirmation,
