@@ -220,97 +220,96 @@ struct MarkdownConverter {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>\(title)</title>
         <style>
+          /* Palette matches the app's design tokens (surface / text / divider) so the
+             document blends seamlessly with the rest of the UI. */
           :root {
-            --bg: #fafaf8;
-            --fg: #2c2c2e;
+            --bg: #FBF6EF;        /* surface */
+            --fg: #3A2F26;        /* textPrimary */
+            --muted: #7A6A58;     /* textSecondary */
             --accent: \(accentHex);
-            --accent-light: #f0f0ee;
-            --border: #e0e0e0;
-            --code-bg: #f0f0f0;
-            --blockquote-bg: #f2f2f0;
-            --link: \(accentHex);
-            --h1: \(accentHex);
+            --border: #ECE0D0;    /* divider */
+            --raised: #FFFFFF;    /* surfaceRaised */
+            --row-alt: rgba(58, 47, 38, 0.04);
           }
           @media (prefers-color-scheme: dark) {
             :root {
-              --bg: #1e1e1e;
-              --fg: #f0f0f0;
+              --bg: #16151A;
+              --fg: #E8D5C4;
+              --muted: #9A92A6;
               --accent: \(accentHex);
-              --accent-light: #2a2a2a;
-              --border: #3a3a3a;
-              --code-bg: #252525;
-              --blockquote-bg: #252525;
-              --link: \(accentHex);
-              --h1: \(accentHex);
+              --border: #2A2730;
+              --raised: #211F28;
+              --row-alt: rgba(255, 255, 255, 0.035);
             }
           }
           * { box-sizing: border-box; margin: 0; padding: 0; }
           body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            font-size: 15px;
-            line-height: 1.7;
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
+            font-size: 16px;
+            line-height: 1.65;
             color: var(--fg);
             background: var(--bg);
-            padding: 28px 36px 60px 36px;
-            max-width: 820px;
+            padding: 32px 40px 72px 40px;
+            max-width: 760px;
             margin: 0 auto;
+            -webkit-font-smoothing: antialiased;
           }
-          h1 { color: var(--h1); font-size: 2em; margin: 1.2em 0 0.5em; border-bottom: 2px solid var(--accent); padding-bottom: 0.3em; }
-          h2 { color: var(--accent); font-size: 1.5em; margin: 1.1em 0 0.4em; border-bottom: 1px solid var(--border); padding-bottom: 0.2em; }
-          h3 { font-size: 1.2em; margin: 1em 0 0.35em; color: var(--accent); }
-          h4, h5, h6 { margin: 0.8em 0 0.3em; }
-          p { margin: 0.6em 0; }
-          a { color: var(--link); text-decoration: none; }
+          h1 {
+            color: var(--fg); font-size: 1.9em; font-weight: 700; letter-spacing: -0.01em;
+            margin: 0 0 0.6em; padding-bottom: 0.3em; border-bottom: 2px solid var(--accent);
+          }
+          h2 {
+            color: var(--fg); font-size: 1.4em; font-weight: 650; letter-spacing: -0.01em;
+            margin: 1.6em 0 0.5em; padding-bottom: 0.25em; border-bottom: 1px solid var(--border);
+          }
+          h3 { color: var(--fg); font-size: 1.15em; font-weight: 600; margin: 1.3em 0 0.4em; }
+          h4, h5, h6 { color: var(--fg); font-weight: 600; margin: 1em 0 0.35em; }
+          p { margin: 0.7em 0; }
+          a { color: var(--accent); text-decoration: none; }
           a:hover { text-decoration: underline; }
           code {
             font-family: 'SF Mono', Menlo, Consolas, monospace;
-            font-size: 0.88em;
-            background: var(--code-bg);
-            padding: 2px 5px;
-            border-radius: 4px;
+            font-size: 0.86em;
+            background: var(--raised);
+            border: 1px solid var(--border);
+            padding: 1px 5px;
+            border-radius: 5px;
           }
           pre {
-            background: var(--code-bg);
+            background: var(--raised);
             border: 1px solid var(--border);
-            border-radius: 8px;
+            border-radius: 10px;
             padding: 16px;
             overflow-x: auto;
             margin: 1em 0;
           }
-          pre code { background: none; padding: 0; font-size: 0.9em; }
-          ul, ol { margin: 0.6em 0 0.6em 1.6em; }
-          li { margin: 0.25em 0; }
+          pre code { background: none; border: none; padding: 0; font-size: 0.9em; }
+          ul, ol { margin: 0.7em 0 0.7em 1.5em; }
+          li { margin: 0.3em 0; }
           blockquote {
-            border-left: 4px solid var(--accent);
-            background: var(--blockquote-bg);
+            border-left: 3px solid var(--accent);
+            background: var(--raised);
             margin: 1em 0;
-            padding: 10px 16px;
-            border-radius: 0 6px 6px 0;
+            padding: 12px 16px;
+            border-radius: 8px;
             color: var(--fg);
-            font-style: italic;
           }
           table {
-            border-collapse: collapse;
+            border-collapse: separate;
+            border-spacing: 0;
             width: 100%;
-            margin: 1em 0;
-          }
-          th, td {
+            margin: 1.2em 0;
             border: 1px solid var(--border);
-            padding: 8px 12px;
-            text-align: left;
+            border-radius: 10px;
+            overflow: hidden;
           }
-          th {
-            background: var(--accent-light);
-            font-weight: 600;
-          }
-          tr:nth-child(even) td { background: rgba(0,0,0,0.02); }
-          hr {
-            border: none;
-            border-top: 2px solid var(--border);
-            margin: 1.5em 0;
-          }
-          del { color: #888; }
-          img { max-width: 100%; border-radius: 6px; }
+          th, td { padding: 9px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+          tr:last-child td { border-bottom: none; }
+          th { background: var(--raised); font-weight: 600; color: var(--fg); }
+          tr:nth-child(even) td { background: var(--row-alt); }
+          hr { border: none; border-top: 1px solid var(--border); margin: 1.8em 0; }
+          del { color: var(--muted); }
+          img { max-width: 100%; border-radius: 8px; }
           strong { font-weight: 700; }
           em { font-style: italic; }
         </style>
@@ -457,7 +456,7 @@ struct MarkdownWebView: NSViewRepresentable {
                 if (existing) { existing.remove(); }
                 var div = document.createElement('div');
                 div.id = noteId(key);
-                div.style.cssText = 'border-left:2px solid '+AMBER+';padding-left:10px;margin:4px 0 8px 0;font-style:italic;color:#999;font-size:11px;cursor:pointer';
+                div.style.cssText = 'border-left:2px solid '+AMBER+';padding-left:10px;margin:6px 0 10px 0;font-style:italic;color:var(--muted);font-size:13px;cursor:pointer';
                 div.textContent = text;
                 div.addEventListener('click', function(e) {
                   e.stopPropagation();
@@ -475,7 +474,7 @@ struct MarkdownWebView: NSViewRepresentable {
                 input.type = 'text';
                 input.value = existingText || '';
                 input.placeholder = 'Add a note…';
-                input.style.cssText = 'flex:1;border:none;border-bottom:1px solid '+AMBER+';background:transparent;font-style:italic;color:#999;font-size:11px;outline:none;padding:2px 0';
+                input.style.cssText = 'flex:1;border:none;border-bottom:1px solid '+AMBER+';background:transparent;font-style:italic;color:var(--fg);font-size:13px;outline:none;padding:2px 0';
                 input.addEventListener('keydown', function(e) {
                   if (e.key === 'Enter') { e.preventDefault(); saveNote(key, input.value, block, container); }
                   else if (e.key === 'Escape') { container.remove(); }
@@ -485,7 +484,7 @@ struct MarkdownWebView: NSViewRepresentable {
                   var del = document.createElement('a');
                   del.textContent = 'Delete';
                   del.href = '#';
-                  del.style.cssText = 'color:#999;font-size:10px;text-decoration:none';
+                  del.style.cssText = 'color:var(--muted);font-size:12px;text-decoration:none';
                   del.addEventListener('click', function(e) { e.preventDefault(); deleteNote(key, container); });
                   container.appendChild(del);
                 }
