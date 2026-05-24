@@ -1,4 +1,9 @@
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 
 // MARK: - App theme
 
@@ -121,7 +126,8 @@ enum AppTheme: String, CaseIterable, Identifiable {
 // MARK: - Hex → color helpers
 
 enum ThemeColor {
-    static func ns(_ hex: String) -> NSColor {
+    /// Parse a CSS hex string into a platform color (NSColor on macOS, UIColor on iOS).
+    static func platform(_ hex: String) -> PlatformColor {
         var s = hex
         if s.hasPrefix("#") { s.removeFirst() }
         var v: UInt64 = 0
@@ -129,18 +135,9 @@ enum ThemeColor {
         let r = CGFloat((v >> 16) & 0xFF) / 255
         let g = CGFloat((v >> 8) & 0xFF) / 255
         let b = CGFloat(v & 0xFF) / 255
-        return NSColor(srgbRed: r, green: g, blue: b, alpha: 1)
+        return platformSRGBColor(red: r, green: g, blue: b)
     }
-    static func color(_ hex: String) -> Color { Color(nsColor: ns(hex)) }
-
-    /// Theme-driven surface as a dynamic NSColor (for AppKit consumers like PDFView).
-    static var surfaceNS: NSColor {
-        NSColor(name: nil) { appearance in
-            let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-            let p = AppSettings.shared.appTheme.palette
-            return ns(isDark ? p.surfaceD : p.surfaceL)
-        }
-    }
+    static func color(_ hex: String) -> Color { Color(platform(hex)) }
 }
 
 // MARK: - Theme-driven color tokens
@@ -150,10 +147,9 @@ enum ThemeColor {
 // `Color.surface`, `Color.appAccent`, etc. unchanged.
 extension Color {
     private static func themed(_ pick: @escaping (AppTheme.Palette, Bool) -> String) -> Color {
-        Color(nsColor: NSColor(name: nil) { appearance in
-            let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-            return ThemeColor.ns(pick(AppSettings.shared.appTheme.palette, isDark))
-        })
+        platformDynamicColor { isDark in
+            ThemeColor.platform(pick(AppSettings.shared.appTheme.palette, isDark))
+        }
     }
 
     static var surface: Color        { themed { p, d in d ? p.surfaceD : p.surfaceL } }
@@ -170,9 +166,13 @@ extension Color {
     /// Keep hue; nudge lightness/saturation so a user-picked accent stays legible on the
     /// current background. Dark mode: ensure not-too-dark. Light mode: ensure not-too-pale.
     func legible(in scheme: ColorScheme) -> Color {
-        let ns = NSColor(self).usingColorSpace(.deviceRGB) ?? NSColor(self)
         var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-        ns.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
+        #if canImport(UIKit)
+        PlatformColor(self).getHue(&h, saturation: &s, brightness: &b, alpha: &a)
+        #else
+        let resolved = NSColor(self).usingColorSpace(.deviceRGB) ?? NSColor(self)
+        resolved.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
+        #endif
         if scheme == .dark { b = max(b, 0.62); s = min(s, 0.85) }
         else { b = min(b, 0.78) }
         return Color(hue: Double(h), saturation: Double(s), brightness: Double(b))

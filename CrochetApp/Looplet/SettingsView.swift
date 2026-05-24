@@ -1,12 +1,32 @@
 import SwiftUI
-import AppKit
 
 struct SettingsView: View {
     @ObservedObject private var settings = AppSettings.shared
     @ObservedObject private var proStore = ProStore.shared
     @State private var showPaywall = false
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
+        #if os(macOS)
+        settingsTabs
+            .frame(width: 520, height: 460)
+            .sheet(isPresented: $showPaywall) { PaywallView() }
+        #else
+        NavigationStack {
+            settingsTabs
+                .navigationTitle("Settings")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") { dismiss() }
+                    }
+                }
+        }
+        .sheet(isPresented: $showPaywall) { PaywallView() }
+        #endif
+    }
+
+    private var settingsTabs: some View {
         TabView {
             ScrollView { countingTab.padding(.bottom, 16) }
                 .tabItem { Label("Counting", systemImage: "list.number") }
@@ -16,11 +36,11 @@ struct SettingsView: View {
                 .tabItem { Label("Appearance", systemImage: "paintbrush") }
             ScrollView { aboutTab.padding(.bottom, 16) }
                 .tabItem { Label("About", systemImage: "info.circle") }
+            #if os(macOS)
             ScrollView { shortcutsTab.padding(.bottom, 16) }
                 .tabItem { Label("Shortcuts", systemImage: "keyboard") }
+            #endif
         }
-        .frame(width: 520, height: 460)
-        .sheet(isPresented: $showPaywall) { PaywallView() }
     }
 
     // MARK: - Counting
@@ -261,7 +281,7 @@ struct SettingsView: View {
             Section("Feedback") {
                 Button {
                     if let url = URL(string: AppSettings.feedbackURLString) {
-                        NSWorkspace.shared.open(url)
+                        openExternalURL(url)
                     }
                 } label: {
                     Label("Send Feedback & Suggestions…", systemImage: "paperplane")
@@ -308,8 +328,9 @@ struct SettingsView: View {
         .help("Apply \(preset.name) preset")
     }
 
-    // MARK: - Shortcuts
+    // MARK: - Shortcuts (macOS hardware-keyboard reference)
 
+    #if os(macOS)
     private var shortcutsTab: some View {
         Form {
             Section("Counter Controls") {
@@ -343,4 +364,5 @@ struct SettingsView: View {
                 .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Color.secondary.opacity(0.2), lineWidth: 1))
         }
     }
+    #endif
 }

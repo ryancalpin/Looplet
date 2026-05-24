@@ -1,6 +1,5 @@
 import Foundation
 import Combine
-import AppKit
 
 // MARK: - Yarn Stash Model
 
@@ -84,7 +83,7 @@ class PatternLibrary: ObservableObject {
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(appWillTerminate),
-            name: NSApplication.willTerminateNotification,
+            name: .appWillPersistState,
             object: nil
         )
     }

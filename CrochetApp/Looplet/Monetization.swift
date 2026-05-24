@@ -175,7 +175,7 @@ struct PaywallView: View {
 
     private let benefits: [(icon: String, title: String, detail: String)] = [
         ("sparkles", "AI Pattern Insights", "Summary, abbreviations, materials, difficulty, time, and Q&A — powered by Apple Intelligence."),
-        ("icloud.fill", "iCloud Sync", "Keep your patterns and yarn stash in sync across all your Macs."),
+        ("icloud.fill", "iCloud Sync", "Keep your patterns and yarn stash in sync across all your devices."),
         ("square.stack.3d.up.fill", "Unlimited Patterns", "Import as many patterns as you like — the free tier stops at \(Pro.freeImportLimit)."),
         ("paintpalette.fill", "All Themes & Colors", "Unlock all 8 themes plus custom counter-pill colors.")
     ]
@@ -212,7 +212,9 @@ struct PaywallView: View {
             Divider()
             footer
         }
+        #if os(macOS)
         .frame(width: 440, height: 520)
+        #endif
         .background(Color.surface)
         .tint(Color.appAccent)
     }

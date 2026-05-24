@@ -1,5 +1,10 @@
 import SwiftUI
 import WebKit
+#if canImport(UIKit)
+import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 
 // MARK: - Simple Markdown to HTML Converter
 struct MarkdownConverter {
@@ -329,6 +334,8 @@ struct MarkdownConverter {
 }
 
 // MARK: - WKWebView Wrapper
+
+#if os(macOS)
 struct MarkdownWebView: NSViewRepresentable {
     let htmlContent: String
     let annotations: [String: String]
@@ -345,43 +352,76 @@ struct MarkdownWebView: NSViewRepresentable {
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
-        context.coordinator.pendingAnnotations = annotations
-        context.coordinator.pendingAbbreviationDict = abbreviationDict
+        context.coordinator.apply(to: webView, htmlContent: htmlContent, annotations: annotations, abbreviationDict: abbreviationDict)
+    }
 
-        if htmlContent != context.coordinator.lastLoadedHTML {
-            context.coordinator.lastLoadedHTML = htmlContent
-            context.coordinator.lastAbbreviationDict = [:]
+    func makeCoordinator() -> MarkdownWebCoordinator {
+        MarkdownWebCoordinator(annotations: annotations)
+    }
+}
+#else
+struct MarkdownWebView: UIViewRepresentable {
+    let htmlContent: String
+    let annotations: [String: String]
+    let bridge: AnnotationBridge
+    var abbreviationDict: [String: String] = [:]
+
+    func makeUIView(context: Context) -> WKWebView {
+        let config = WKWebViewConfiguration()
+        config.userContentController.add(bridge, name: "AnnotationBridge")
+        let webView = WKWebView(frame: .zero, configuration: config)
+        webView.isOpaque = false
+        webView.backgroundColor = .clear
+        webView.scrollView.backgroundColor = .clear
+        webView.navigationDelegate = context.coordinator
+        return webView
+    }
+
+    func updateUIView(_ webView: WKWebView, context: Context) {
+        context.coordinator.apply(to: webView, htmlContent: htmlContent, annotations: annotations, abbreviationDict: abbreviationDict)
+    }
+
+    func makeCoordinator() -> MarkdownWebCoordinator {
+        MarkdownWebCoordinator(annotations: annotations)
+    }
+}
+#endif
+
+/// Shared navigation delegate + JS injection for the markdown web view on both platforms.
+final class MarkdownWebCoordinator: NSObject, WKNavigationDelegate {
+    var pendingAnnotations: [String: String]
+    var pendingAbbreviationDict: [String: String] = [:]
+    var lastLoadedHTML: String = ""
+    var lastAbbreviationDict: [String: String] = [:]
+
+    init(annotations: [String: String]) {
+        self.pendingAnnotations = annotations
+    }
+
+    func apply(to webView: WKWebView, htmlContent: String, annotations: [String: String], abbreviationDict: [String: String]) {
+        pendingAnnotations = annotations
+        pendingAbbreviationDict = abbreviationDict
+
+        if htmlContent != lastLoadedHTML {
+            lastLoadedHTML = htmlContent
+            lastAbbreviationDict = [:]
             webView.loadHTMLString(htmlContent, baseURL: nil)
             return
         }
 
-        if !abbreviationDict.isEmpty, abbreviationDict != context.coordinator.lastAbbreviationDict {
-            context.coordinator.lastAbbreviationDict = abbreviationDict
-            context.coordinator.injectAbbreviationTooltips(into: webView, dict: abbreviationDict)
+        if !abbreviationDict.isEmpty, abbreviationDict != lastAbbreviationDict {
+            lastAbbreviationDict = abbreviationDict
+            injectAbbreviationTooltips(into: webView, dict: abbreviationDict)
         }
     }
 
-    func makeCoordinator() -> Coordinator {
-        Coordinator(annotations: annotations)
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        injectAnnotationJS(into: webView, annotations: pendingAnnotations)
+        if !pendingAbbreviationDict.isEmpty {
+            lastAbbreviationDict = pendingAbbreviationDict
+            injectAbbreviationTooltips(into: webView, dict: pendingAbbreviationDict)
+        }
     }
-
-    final class Coordinator: NSObject, WKNavigationDelegate {
-        var pendingAnnotations: [String: String]
-        var pendingAbbreviationDict: [String: String] = [:]
-        var lastLoadedHTML: String = ""
-        var lastAbbreviationDict: [String: String] = [:]
-
-        init(annotations: [String: String]) {
-            self.pendingAnnotations = annotations
-        }
-
-        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            injectAnnotationJS(into: webView, annotations: pendingAnnotations)
-            if !pendingAbbreviationDict.isEmpty {
-                lastAbbreviationDict = pendingAbbreviationDict
-                injectAbbreviationTooltips(into: webView, dict: pendingAbbreviationDict)
-            }
-        }
 
         private func injectAnnotationJS(into webView: WKWebView, annotations: [String: String]) {
             let annotationsJSON: String
@@ -589,7 +629,6 @@ struct MarkdownWebView: NSViewRepresentable {
             webView.evaluateJavaScript(js, completionHandler: nil)
         }
     }
-}
 
 // MARK: - Markdown View
 struct MarkdownView: View {

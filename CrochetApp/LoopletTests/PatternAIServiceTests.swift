@@ -2,9 +2,9 @@ import XCTest
 @testable import Looplet
 
 /// Tests for the deterministic `PatternAIService.estimatedTime(fromRows:rowsPerHour:)`
-/// helper. Gated to macOS 26 because the helper lives on the `@available(macOS 26.0, *)`
-/// service type.
-@available(macOS 26.0, *)
+/// helper. Gated to iOS 26 / macOS 26 because the helper lives on the
+/// `@available(iOS 26.0, macOS 26.0, *)` service type.
+@available(iOS 26.0, macOS 26.0, *)
 @MainActor
 final class PatternAIServiceTests: XCTestCase {
 

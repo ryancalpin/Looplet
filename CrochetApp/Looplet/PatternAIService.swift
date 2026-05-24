@@ -41,7 +41,7 @@ struct MaterialsBreakdown: Codable {
 // typed, structured output directly (instead of free text we fragile-parse). They map
 // to the plain Codable structs above, which stay OS-agnostic for persistence.
 
-@available(macOS 26.0, *)
+@available(iOS 26.0, macOS 26.0, *)
 @Generable
 struct GeneratedSummary {
     @Guide(description: "The pattern's name or title")
@@ -56,7 +56,7 @@ struct GeneratedSummary {
     var keyStitches: String
 }
 
-@available(macOS 26.0, *)
+@available(iOS 26.0, macOS 26.0, *)
 @Generable
 struct GeneratedMaterials {
     @Guide(description: "Yarn: weight class, fiber, color, and yardage if mentioned")
@@ -67,7 +67,7 @@ struct GeneratedMaterials {
     var notions: String
 }
 
-@available(macOS 26.0, *)
+@available(iOS 26.0, macOS 26.0, *)
 @Generable
 struct GeneratedAbbreviation {
     @Guide(description: "The abbreviation token exactly as written, e.g. sc")
@@ -76,7 +76,7 @@ struct GeneratedAbbreviation {
     var meaning: String
 }
 
-@available(macOS 26.0, *)
+@available(iOS 26.0, macOS 26.0, *)
 @Generable
 struct GeneratedAbbreviations {
     @Guide(description: "Terminology convention the pattern follows", .anyOf(["US", "UK"]))
@@ -85,7 +85,7 @@ struct GeneratedAbbreviations {
     var entries: [GeneratedAbbreviation]
 }
 
-@available(macOS 26.0, *)
+@available(iOS 26.0, macOS 26.0, *)
 @Generable
 struct GeneratedDifficulty {
     @Guide(description: "Difficulty classification", .anyOf(["Beginner", "Intermediate", "Advanced"]))
@@ -98,13 +98,13 @@ struct GeneratedDifficulty {
 enum AIServiceError: LocalizedError {
     case unavailable
     var errorDescription: String? {
-        "Apple Intelligence isn't available on this Mac. Enable it in System Settings → Apple Intelligence & Siri to use AI insights."
+        "Apple Intelligence isn't available on this device. Enable it in Settings → Apple Intelligence & Siri to use AI insights."
     }
 }
 
 // MARK: - Service
 
-@available(macOS 26.0, *)
+@available(iOS 26.0, macOS 26.0, *)
 @MainActor
 final class PatternAIService: ObservableObject {
 
@@ -308,7 +308,7 @@ final class PatternAIService: ObservableObject {
 /// will not start a second run for a pattern that is already being analyzed. This is
 /// what makes "auto-parse on import" safe — opening or re-selecting a pattern never
 /// triggers a fresh burst of on-device model calls once its insights are persisted.
-@available(macOS 26.0, *)
+@available(iOS 26.0, macOS 26.0, *)
 @MainActor
 enum AIInsights {
     /// The one service instance shared by the background driver and the AI panel,

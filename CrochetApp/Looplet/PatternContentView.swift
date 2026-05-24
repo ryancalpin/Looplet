@@ -1,6 +1,11 @@
 import SwiftUI
 import PDFKit
 import UniformTypeIdentifiers
+#if canImport(AppKit)
+import AppKit
+#elseif canImport(UIKit)
+import UIKit
+#endif
 
 /// Top-level pattern viewer — dispatches to PDFKitView or MarkdownView based on file extension.
 struct PatternContentView: View {
@@ -25,6 +30,7 @@ struct PatternContentView: View {
 
 // MARK: - PDFKit viewer
 
+#if os(macOS)
 struct PDFKitView: NSViewRepresentable {
     let url: URL
 
@@ -62,12 +68,12 @@ struct PDFKitView: NSViewRepresentable {
         }
     }
 
-    /// Theme surface resolved as a plain NSColor for the given appearance (avoids
+    /// Theme surface resolved as a plain color for the given appearance (avoids
     /// AppKit's per-appearance dynamic-color cache, which would go stale on a theme switch).
     private static func themeSurface(for appearance: NSAppearance) -> NSColor {
         let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
         let p = AppSettings.shared.appTheme.palette
-        return ThemeColor.ns(isDark ? p.surfaceD : p.surfaceL)
+        return ThemeColor.platform(isDark ? p.surfaceD : p.surfaceL)
     }
 
     func makeCoordinator() -> Coordinator { Coordinator() }
@@ -78,3 +84,53 @@ struct PDFKitView: NSViewRepresentable {
         var loadedURL: URL?
     }
 }
+#else
+struct PDFKitView: UIViewRepresentable {
+    let url: URL
+
+    func makeUIView(context: Context) -> PDFView {
+        let view = PDFView()
+        view.autoScales = true
+        view.displayMode = .singlePageContinuous
+        view.displayDirection = .vertical
+        view.backgroundColor = Self.themeSurface(for: view.traitCollection)
+        context.coordinator.pdfView = view
+        context.coordinator.accessing = url.startAccessingSecurityScopedResource()
+        view.document = PDFDocument(url: url)
+        context.coordinator.loadedURL = url
+        return view
+    }
+
+    func updateUIView(_ pdfView: PDFView, context: Context) {
+        pdfView.backgroundColor = Self.themeSurface(for: pdfView.traitCollection)
+        if context.coordinator.loadedURL != url {
+            if context.coordinator.accessing, let old = context.coordinator.loadedURL {
+                old.stopAccessingSecurityScopedResource()
+            }
+            context.coordinator.accessing = url.startAccessingSecurityScopedResource()
+            pdfView.document = PDFDocument(url: url)
+            context.coordinator.loadedURL = url
+        }
+    }
+
+    static func dismantleUIView(_ pdfView: PDFView, coordinator: Coordinator) {
+        if coordinator.accessing, let u = coordinator.loadedURL {
+            u.stopAccessingSecurityScopedResource()
+        }
+    }
+
+    private static func themeSurface(for traits: UITraitCollection) -> UIColor {
+        let isDark = traits.userInterfaceStyle == .dark
+        let p = AppSettings.shared.appTheme.palette
+        return ThemeColor.platform(isDark ? p.surfaceD : p.surfaceL)
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    final class Coordinator {
+        weak var pdfView: PDFView?
+        var accessing = false
+        var loadedURL: URL?
+    }
+}
+#endif

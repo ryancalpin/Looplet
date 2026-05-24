@@ -1,5 +1,4 @@
 import SwiftUI
-import AppKit
 
 @main
 struct LoopletApp: App {
@@ -11,12 +10,15 @@ struct LoopletApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView(library: library, store: store, sessionTimer: sessionTimer)
+                #if os(macOS)
                 .frame(minWidth: 700, minHeight: 500)
+                #endif
                 .preferredColorScheme(settings.appearanceMode.colorScheme)
                 .onAppear {
                     store.library = library
                 }
         }
+        #if os(macOS)
         .commands {
             CommandGroup(replacing: .newItem) {}
             CommandGroup(after: .sidebar) {
@@ -34,7 +36,7 @@ struct LoopletApp: App {
                 }
                 Button("Send Feedback & Suggestions…") {
                     if let url = URL(string: AppSettings.feedbackURLString) {
-                        NSWorkspace.shared.open(url)
+                        openExternalURL(url)
                     }
                 }
                 Divider()
@@ -44,10 +46,13 @@ struct LoopletApp: App {
                 .keyboardShortcut(.delete, modifiers: .command)
             }
         }
+        #endif
 
+        #if os(macOS)
         Settings {
             SettingsView()
         }
+        #endif
     }
 }
 

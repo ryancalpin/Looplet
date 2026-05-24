@@ -478,7 +478,9 @@ struct PatternLibraryView: View {
                     .frame(width: 24, height: 24)
                     .contentShape(Rectangle())
             }
+            #if os(macOS)
             .menuStyle(.borderlessButton)
+            #endif
             .menuIndicator(.hidden)
             .fixedSize()
             .opacity(isHovered ? 1 : 0.4)
@@ -545,14 +547,7 @@ struct PatternLibraryView: View {
             }
         }
         let content = lines.joined(separator: "\n")
-        let panel = NSSavePanel()
-        panel.title = "Export Notes"
-        panel.nameFieldStringValue = "\(entry.displayName) Notes.md"
-        panel.allowedContentTypes = [.text, UTType(filenameExtension: "md") ?? .text]
-        panel.begin { response in
-            guard response == .OK, let url = panel.url else { return }
-            try? content.write(to: url, atomically: true, encoding: .utf8)
-        }
+        PatternExporter.exportText(content, suggestedName: "\(entry.displayName) Notes.md")
     }
 }
 

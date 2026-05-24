@@ -19,6 +19,12 @@ struct ContentView: View {
     @State private var showPaywall = false
     @State private var paywallReason: String? = nil
 
+    #if os(iOS)
+    @State private var showSettings = false
+    @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
+
     // Cached pattern text for the active entry. Loaded once when the entry changes
     // (with a properly balanced security scope) instead of re-reading the file on
     // every view update.
@@ -26,160 +32,214 @@ struct ContentView: View {
     @State private var cachedPatternTextID: UUID? = nil
 
     var body: some View {
+        rootLayout
+            .onReceive(NotificationCenter.default.publisher(for: .toggleFocusMode)) { _ in
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { focusMode.toggle() }
+            }
+            .onChange(of: showAIPanel) { UserDefaults.standard.aiPanelOpen = $0 }
+            .onChange(of: library.activeEntryID) { _ in
+                abbreviationDict = [:]
+                reloadPatternText()
+                #if os(iOS)
+                // On iPhone, selecting a pattern should reveal the detail column.
+                if horizontalSizeClass == .compact { columnVisibility = .detailOnly }
+                #endif
+                // Kick off (or backfill) AI insight generation as soon as a pattern is
+                // imported or opened. Idempotent + persisted, so this never re-bursts.
+                // Pro-only — free users see the locked panel, so don't burn compute.
+                if #available(iOS 26.0, macOS 26.0, *), proStore.isPro, let id = library.activeEntryID {
+                    AIInsights.ensure(for: id, in: library)
+                }
+            }
+            .onAppear {
+                #if os(macOS)
+                NSApp.mainWindow?.title = "Looplet"
+                #endif
+                reloadPatternText()
+                showOnboarding = !settings.hasSeenOnboarding
+                if #available(iOS 26.0, macOS 26.0, *), proStore.isPro, let id = library.activeEntryID {
+                    AIInsights.ensure(for: id, in: library)
+                }
+            }
+            .sheet(isPresented: $showOnboarding) { OnboardingView() }
+            .sheet(isPresented: $showPaywall) { PaywallView(reason: paywallReason) }
+            #if os(iOS)
+            .sheet(isPresented: $showSettings) { SettingsView() }
+            .sheet(isPresented: $showAIPanel) { aiPanelSheet }
+            #endif
+            .onReceive(NotificationCenter.default.publisher(for: .showPaywall)) { _ in
+                paywallReason = nil
+                showPaywall = true
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .showOnboarding)) { _ in
+                showOnboarding = true
+            }
+    }
+
+    // MARK: - Root layout (platform-specific)
+
+    #if os(macOS)
+    private var rootLayout: some View {
         HStack(spacing: 0) {
-            // ── Sidebar ───────────────────────────────────────────────
             if !focusMode {
                 PatternLibraryView(library: library, store: store)
                     .frame(minWidth: 200, idealWidth: 220, maxWidth: 280)
                     .frame(maxHeight: .infinity)
                     .transition(.move(edge: .leading).combined(with: .opacity))
-
                 Divider()
             }
-
-            // ── Detail ────────────────────────────────────────────────
-            VStack(spacing: 0) {
-                if !focusMode {
-                    CounterBarView(
-                        store: store,
-                        timer: sessionTimer,
-                        entry: activeEntryBinding,
-                        showAIPanel: $showAIPanel
-                    )
-                    if let entry = library.activeEntry {
-                        PatternSummaryBar(entry: entry)
-                    }
-                }
-
-                HStack(spacing: 0) {
-                    PatternContentView(
-                        fileURL: activeFileURL,
-                        library: library,
-                        abbreviationDict: abbreviationDict
-                    )
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-                    // Mount AIPanelView ONLY when open so its .task never runs (no AI burst)
-                    // while the panel is closed. The shared service (owned outside the panel)
-                    // keeps the per-pattern cache alive across close/reopen.
-                    // Free tier sees a locked panel inviting them to unlock Pro.
-                    if showAIPanel {
-                        if proStore.isPro {
-                            if #available(macOS 26.0, *), let entry = library.activeEntry, let text = activePatternText {
-                                resizableDivider
-                                AIPanelView(
-                                    service: AIInsights.service,
-                                    entry: entry,
-                                    patternText: text,
-                                    library: library,
-                                    showAIPanel: $showAIPanel,
-                                    abbreviationDict: $abbreviationDict
-                                )
-                                .frame(width: aiPanelWidth)
-                                .transition(.move(edge: .trailing))
-                            }
-                        } else {
-                            resizableDivider
-                            AILockedPanel(
-                                onUnlock: {
-                                    paywallReason = "AI insights read your pattern for a summary, abbreviations, materials, and answers to your questions."
-                                    showPaywall = true
-                                },
-                                onClose: { showAIPanel = false }
-                            )
-                            .frame(width: aiPanelWidth)
-                            .transition(.move(edge: .trailing))
-                        }
-                    }
-                }
-                .animation(.spring(response: 0.3, dampingFraction: 0.8), value: showAIPanel)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .overlay(alignment: .top) {
-                if focusMode {
-                    GlassHUD {
-                        CounterPill(
-                            label: "ROW",
-                            value: store.rowCount,
-                            goal: library.activeEntry?.rowGoal,
-                            color: settings.rowColor.legible(in: colorScheme),
-                            size: settings.counterSize,
-                            onDecrement: { store.decrementRow() },
-                            onIncrement: { store.incrementRow() }
-                        )
-                        CounterPill(
-                            label: "STITCH",
-                            value: store.stitchCount,
-                            goal: library.activeEntry?.stitchGoal,
-                            color: settings.stitchColor.legible(in: colorScheme),
-                            size: settings.counterSize,
-                            onDecrement: { store.decrementStitch() },
-                            onIncrement: { store.incrementStitch() }
-                        )
-                        if library.activeEntry?.showRepeatCounter == true {
-                            CounterPill(
-                                label: "REPEAT",
-                                value: store.repeatCount,
-                                goal: nil,
-                                color: settings.repeatColor.legible(in: colorScheme),
-                                size: settings.counterSize,
-                                onDecrement: { store.decrementRepeat() },
-                                onIncrement: { store.incrementRepeat() }
-                            )
-                        }
-                        Divider().frame(height: 28)
-                        Button {
-                            NotificationCenter.default.post(name: .toggleFocusMode, object: nil)
-                        } label: {
-                            Image(systemName: "arrow.down.right.and.arrow.up.left")
-                                .font(.title3)
-                                .foregroundColor(.textSecondary)
-                                .padding(6)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .help("Exit focus mode (⌃⌘F)")
-                        .accessibilityLabel("Exit focus mode")
-                    }
-                    .padding(.top, 12)
-                }
-            }
+            detailColumn
         }
         .background(KeyboardShortcutHandler(store: store))
-        .onReceive(NotificationCenter.default.publisher(for: .toggleFocusMode)) { _ in
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { focusMode.toggle() }
+    }
+    #else
+    private var rootLayout: some View {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
+            PatternLibraryView(library: library, store: store)
+                .navigationTitle("Library")
+                .navigationBarTitleDisplayMode(.inline)
+        } detail: {
+            detailColumn
+                .navigationTitle(library.activeEntry?.displayName ?? "Looplet")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button { showSettings = true } label: {
+                            Image(systemName: "gearshape")
+                        }
+                        .accessibilityLabel("Settings")
+                    }
+                }
         }
-        .onChange(of: showAIPanel) { UserDefaults.standard.aiPanelOpen = $0 }
-        .onChange(of: library.activeEntryID) { _ in
-            abbreviationDict = [:]
-            reloadPatternText()
-            // Kick off (or backfill) AI insight generation as soon as a pattern is
-            // imported or opened. Idempotent + persisted, so this never re-bursts.
-            // Pro-only — free users see the locked panel, so don't burn compute.
-            if #available(macOS 26.0, *), proStore.isPro, let id = library.activeEntryID {
-                AIInsights.ensure(for: id, in: library)
+    }
+    #endif
+
+    // MARK: - Detail column (shared)
+
+    private var detailColumn: some View {
+        VStack(spacing: 0) {
+            counterArea
+            HStack(spacing: 0) {
+                PatternContentView(
+                    fileURL: activeFileURL,
+                    library: library,
+                    abbreviationDict: abbreviationDict
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                // macOS mounts the AI panel inline; iOS presents it as a sheet (see body).
+                #if os(macOS)
+                aiInlinePanel
+                #endif
             }
+            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: showAIPanel)
         }
-        .onAppear {
-            NSApp.mainWindow?.title = "Looplet"
-            reloadPatternText()
-            showOnboarding = !settings.hasSeenOnboarding
-            if #available(macOS 26.0, *), proStore.isPro, let id = library.activeEntryID {
-                AIInsights.ensure(for: id, in: library)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .overlay(alignment: .top) { focusOverlay }
+    }
+
+    // MARK: - Shared sub-views
+
+    @ViewBuilder private var counterArea: some View {
+        if !focusMode {
+            CounterBarView(
+                store: store,
+                timer: sessionTimer,
+                entry: activeEntryBinding,
+                showAIPanel: $showAIPanel
+            )
+            if let entry = library.activeEntry {
+                PatternSummaryBar(entry: entry)
             }
-        }
-        .sheet(isPresented: $showOnboarding) { OnboardingView() }
-        .sheet(isPresented: $showPaywall) { PaywallView(reason: paywallReason) }
-        .onReceive(NotificationCenter.default.publisher(for: .showPaywall)) { _ in
-            paywallReason = nil
-            showPaywall = true
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .showOnboarding)) { _ in
-            showOnboarding = true
         }
     }
 
-    // MARK: - Resizable AI panel divider
+    @ViewBuilder private var focusOverlay: some View {
+        if focusMode {
+            GlassHUD {
+                CounterPill(
+                    label: "ROW",
+                    value: store.rowCount,
+                    goal: library.activeEntry?.rowGoal,
+                    color: settings.rowColor.legible(in: colorScheme),
+                    size: settings.counterSize,
+                    onDecrement: { store.decrementRow() },
+                    onIncrement: { store.incrementRow() }
+                )
+                CounterPill(
+                    label: "STITCH",
+                    value: store.stitchCount,
+                    goal: library.activeEntry?.stitchGoal,
+                    color: settings.stitchColor.legible(in: colorScheme),
+                    size: settings.counterSize,
+                    onDecrement: { store.decrementStitch() },
+                    onIncrement: { store.incrementStitch() }
+                )
+                if library.activeEntry?.showRepeatCounter == true {
+                    CounterPill(
+                        label: "REPEAT",
+                        value: store.repeatCount,
+                        goal: nil,
+                        color: settings.repeatColor.legible(in: colorScheme),
+                        size: settings.counterSize,
+                        onDecrement: { store.decrementRepeat() },
+                        onIncrement: { store.incrementRepeat() }
+                    )
+                }
+                Divider().frame(height: 28)
+                Button {
+                    NotificationCenter.default.post(name: .toggleFocusMode, object: nil)
+                } label: {
+                    Image(systemName: "arrow.down.right.and.arrow.up.left")
+                        .font(.title3)
+                        .foregroundColor(.textSecondary)
+                        .padding(6)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Exit focus mode (⌃⌘F)")
+                .accessibilityLabel("Exit focus mode")
+            }
+            .padding(.top, 12)
+        }
+    }
+
+    // MARK: - AI panel (macOS inline / iOS sheet)
+
+    #if os(macOS)
+    @ViewBuilder private var aiInlinePanel: some View {
+        // Mount AIPanelView ONLY when open so its .task never runs (no AI burst) while the
+        // panel is closed. The shared service keeps the per-pattern cache alive across reopen.
+        // Free tier sees a locked panel inviting them to unlock Pro.
+        if showAIPanel {
+            if proStore.isPro {
+                if #available(macOS 26.0, *), let entry = library.activeEntry, let text = activePatternText {
+                    resizableDivider
+                    AIPanelView(
+                        service: AIInsights.service,
+                        entry: entry,
+                        patternText: text,
+                        library: library,
+                        showAIPanel: $showAIPanel,
+                        abbreviationDict: $abbreviationDict
+                    )
+                    .frame(width: aiPanelWidth)
+                    .transition(.move(edge: .trailing))
+                }
+            } else {
+                resizableDivider
+                AILockedPanel(
+                    onUnlock: {
+                        paywallReason = "AI insights read your pattern for a summary, abbreviations, materials, and answers to your questions."
+                        showPaywall = true
+                    },
+                    onClose: { showAIPanel = false }
+                )
+                .frame(width: aiPanelWidth)
+                .transition(.move(edge: .trailing))
+            }
+        }
+    }
 
     private var resizableDivider: some View {
         Rectangle()
@@ -200,6 +260,50 @@ struct ContentView: View {
                     }
             )
     }
+    #else
+    @ViewBuilder private var aiPanelSheet: some View {
+        if proStore.isPro {
+            if #available(iOS 26.0, macOS 26.0, *), let entry = library.activeEntry, let text = activePatternText {
+                AIPanelView(
+                    service: AIInsights.service,
+                    entry: entry,
+                    patternText: text,
+                    library: library,
+                    showAIPanel: $showAIPanel,
+                    abbreviationDict: $abbreviationDict
+                )
+            } else {
+                aiUnavailableNotice
+            }
+        } else {
+            AILockedPanel(
+                onUnlock: {
+                    paywallReason = "AI insights read your pattern for a summary, abbreviations, materials, and answers to your questions."
+                    showAIPanel = false
+                    showPaywall = true
+                },
+                onClose: { showAIPanel = false }
+            )
+        }
+    }
+
+    @ViewBuilder private var aiUnavailableNotice: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "sparkles")
+                .font(.system(size: 36))
+                .foregroundColor(Color.appAccent)
+            Text("Open a pattern to use AI insights.")
+                .font(.callout)
+                .foregroundColor(.textSecondary)
+                .multilineTextAlignment(.center)
+            Button("Close") { showAIPanel = false }
+                .buttonStyle(.bordered)
+        }
+        .padding(32)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.surface)
+    }
+    #endif
 
     // MARK: - Bindings / helpers
 
@@ -292,8 +396,9 @@ struct PatternSummaryBar: View {
     }
 }
 
-// MARK: - Keyboard Shortcut Handler
+// MARK: - Keyboard Shortcut Handler (macOS hardware keyboard)
 
+#if os(macOS)
 struct KeyboardShortcutHandler: NSViewRepresentable {
     @ObservedObject var store: CounterStore
 
@@ -341,6 +446,7 @@ class KeyHandlerView: NSView {
         }
     }
 }
+#endif
 
 #Preview {
     let library = PatternLibrary()

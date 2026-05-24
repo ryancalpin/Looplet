@@ -6,7 +6,7 @@ struct QAPair: Identifiable {
     let answer: String
 }
 
-@available(macOS 26.0, *)
+@available(iOS 26.0, macOS 26.0, *)
 struct PatternQAView: View {
     @ObservedObject var service: PatternAIService
     let patternID: UUID

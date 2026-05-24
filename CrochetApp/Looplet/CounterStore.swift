@@ -1,6 +1,5 @@
 import Foundation
 import Combine
-import AppKit
 
 class CounterStore: ObservableObject {
     @Published var rowCount: Int = 0
