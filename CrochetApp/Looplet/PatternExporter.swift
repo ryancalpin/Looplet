@@ -1,5 +1,10 @@
-import AppKit
+import SwiftUI
 import UniformTypeIdentifiers
+#if canImport(AppKit)
+import AppKit
+#elseif canImport(UIKit)
+import UIKit
+#endif
 
 /// Builds and exports a Markdown document combining a pattern's metadata, its
 /// persisted AI insights, the user's notes, and the raw pattern text. Reads only
@@ -94,12 +99,18 @@ enum PatternExporter {
 
     // MARK: - Export to file
 
-    /// Present an NSSavePanel to save the markdown as a .md file.
+    /// Export the pattern's insights as a Markdown document. macOS shows an
+    /// NSSavePanel; iOS presents a share sheet with the generated file.
     @MainActor static func exportToFile(_ entry: PatternEntry) {
-        let content = markdown(for: entry)
+        exportText(markdown(for: entry), suggestedName: "\(entry.displayName).md")
+    }
+
+    /// Export arbitrary Markdown text as a file (used for both pattern insights and notes).
+    @MainActor static func exportText(_ content: String, suggestedName: String) {
+        #if os(macOS)
         let panel = NSSavePanel()
-        panel.title = "Export Pattern Insights"
-        panel.nameFieldStringValue = "\(entry.displayName).md"
+        panel.title = "Export"
+        panel.nameFieldStringValue = suggestedName
         panel.allowedContentTypes = [UTType(filenameExtension: "md") ?? .plainText]
         panel.begin { response in
             guard response == .OK, let url = panel.url else { return }
@@ -109,18 +120,25 @@ enum PatternExporter {
                 NSLog("PatternExporter: failed to write export to \(url.path): \(error.localizedDescription)")
             }
         }
+        #else
+        let items: [Any]
+        if let fileURL = writeTemporary(content, name: suggestedName) {
+            items = [fileURL]
+        } else {
+            items = [content]
+        }
+        presentActivity(items: items, sourceView: nil)
+        #endif
     }
 
     // MARK: - Share sheet
 
+    #if os(macOS)
     /// Present the macOS share sheet anchored to a view, sharing the markdown text.
     /// When `view` is nil, anchors to the key window's content view.
-    @MainActor static func share(_ entry: PatternEntry, from view: NSView?) {
+    @MainActor static func share(_ entry: PatternEntry, from view: NSView? = nil) {
         let content = markdown(for: entry)
         let picker = NSSharingServicePicker(items: [content])
-        // Anchor: prefer the provided view; otherwise fall back to the key window's
-        // content view. (No view ref is passed from the SwiftUI menus, so this anchors
-        // to the window's content view with a small rect near the top-trailing corner.)
         guard let anchor = view ?? NSApp.keyWindow?.contentView else {
             NSLog("PatternExporter: no view available to anchor share sheet")
             return
@@ -129,4 +147,39 @@ enum PatternExporter {
         let rect = NSRect(x: bounds.maxX - 1, y: bounds.maxY - 1, width: 1, height: 1)
         picker.show(relativeTo: rect, of: anchor, preferredEdge: .minY)
     }
+    #else
+    /// Present the iOS share sheet sharing the markdown text.
+    @MainActor static func share(_ entry: PatternEntry, from view: UIView? = nil) {
+        presentActivity(items: [markdown(for: entry)], sourceView: view)
+    }
+
+    private static func writeTemporary(_ content: String, name: String) -> URL? {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
+        do {
+            try content.write(to: url, atomically: true, encoding: .utf8)
+            return url
+        } catch {
+            return nil
+        }
+    }
+
+    @MainActor private static func presentActivity(items: [Any], sourceView: UIView?) {
+        let scene = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first { $0.activationState == .foregroundActive }
+            ?? UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        guard let root = scene?.keyWindow?.rootViewController
+            ?? scene?.windows.first?.rootViewController else { return }
+        var top = root
+        while let presented = top.presentedViewController { top = presented }
+
+        let vc = UIActivityViewController(activityItems: items, applicationActivities: nil)
+        if let pop = vc.popoverPresentationController, let anchor = sourceView ?? top.view {
+            pop.sourceView = anchor
+            pop.sourceRect = CGRect(x: anchor.bounds.midX, y: anchor.bounds.midY, width: 0, height: 0)
+            pop.permittedArrowDirections = []
+        }
+        top.present(vc, animated: true)
+    }
+    #endif
 }

@@ -40,11 +40,18 @@ struct PatternEntry: Codable, Identifiable {
     init(url: URL) throws {
         self.id = UUID()
         self.displayName = url.deletingPathExtension().lastPathComponent
+        #if os(macOS)
+        // Security-scoped bookmarks let the sandboxed Mac app re-open the file later.
         if let data = try? url.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil) {
             self.bookmark = data
         } else {
             self.bookmark = try url.bookmarkData(options: .minimalBookmark, includingResourceValuesForKeys: nil, relativeTo: nil)
         }
+        #else
+        // iOS has no `.withSecurityScope` creation option; a regular bookmark of a
+        // user-selected URL resolves with `startAccessingSecurityScopedResource()`.
+        self.bookmark = try url.bookmarkData(options: .minimalBookmark, includingResourceValuesForKeys: nil, relativeTo: nil)
+        #endif
         self.lastOpened = Date()
         self.isPinned = false
         self.rowCount = 0
@@ -92,9 +99,11 @@ struct PatternEntry: Codable, Identifiable {
 
     func resolveURL() -> URL? {
         var isStale = false
+        #if os(macOS)
         if let url = try? URL(resolvingBookmarkData: bookmark, options: .withSecurityScope, relativeTo: nil, bookmarkDataIsStale: &isStale) {
             return url
         }
+        #endif
         return try? URL(resolvingBookmarkData: bookmark, options: [], relativeTo: nil, bookmarkDataIsStale: &isStale)
     }
 }

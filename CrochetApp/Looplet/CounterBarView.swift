@@ -49,7 +49,7 @@ struct CounterBarView: View {
                     resetButton
                     Divider().frame(height: 28)
                     focusButton
-                    if #available(macOS 26.0, *) {
+                    if #available(iOS 26.0, macOS 26.0, *) {
                         Divider().frame(height: 28)
                         aiToggleButton
                     }
@@ -290,7 +290,7 @@ struct CounterBarView: View {
 
     // MARK: - AI toggle
 
-    @available(macOS 26.0, *)
+    @available(iOS 26.0, macOS 26.0, *)
     private var aiToggleButton: some View {
         let aiAccent = Color.appAccent
         return Button { showAIPanel.toggle() } label: {
@@ -323,7 +323,7 @@ struct CounterBarView: View {
             Divider()
             Button("Enter Focus Mode") { NotificationCenter.default.post(name: .toggleFocusMode, object: nil) }
             Button("Reset Counters…") { showResetConfirmation = true }
-            if #available(macOS 26.0, *) {
+            if #available(iOS 26.0, macOS 26.0, *) {
                 Divider()
                 Button(showAIPanel ? "Close AI Panel" : "Open AI Panel") { showAIPanel.toggle() }
             }
@@ -337,7 +337,9 @@ struct CounterBarView: View {
                 .font(.title3)
                 .foregroundColor(.textSecondary)
         }
+        #if os(macOS)
         .menuStyle(.borderlessButton)
+        #endif
         .fixedSize()
     }
 }

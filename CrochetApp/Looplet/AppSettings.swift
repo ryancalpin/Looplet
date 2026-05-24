@@ -1,5 +1,10 @@
 import SwiftUI
+#if canImport(AppKit)
 import AppKit
+#endif
+#if canImport(AudioToolbox)
+import AudioToolbox
+#endif
 
 /// Singleton that owns all user-configurable preferences, backed by UserDefaults via @AppStorage.
 /// Observe it with `@ObservedObject private var settings = AppSettings.shared` in any View.
@@ -245,8 +250,10 @@ final class AppSettings: ObservableObject {
 
 // MARK: - Counter sound effects
 
-/// Selectable counter sounds, backed by the built-in macOS system sounds in
-/// /System/Library/Sounds (loaded by name via NSSound). `none` is silent.
+/// Selectable counter sounds. On macOS these map to the built-in system sounds in
+/// /System/Library/Sounds (loaded by name via NSSound). iOS has no equivalent named
+/// sounds, so each maps to an approximate short system sound played via AudioToolbox.
+/// `none` is silent.
 enum SoundEffect: String, CaseIterable, Identifiable {
     case none, tink, pop, morse, glass, bottle, frog, funk, hero, ping, purr, submarine, blow, sosumi
 
@@ -259,14 +266,43 @@ enum SoundEffect: String, CaseIterable, Identifiable {
         }
     }
 
-    /// NSSound name (matches the system sound file), or nil for silence.
+    /// NSSound name (matches the macOS system sound file), or nil for silence.
     var systemName: String? {
         self == .none ? nil : rawValue.capitalized
     }
 
+    #if canImport(AudioToolbox)
+    /// Approximate iOS system sound ID for each effect (from /System/Library/Audio/UISounds).
+    /// macOS named sounds have no direct iOS counterparts, so these are short, distinct
+    /// stand-ins chosen for a similar feel.
+    var iOSSystemSoundID: SystemSoundID? {
+        switch self {
+        case .none:      return nil
+        case .tink:      return 1057
+        case .pop:       return 1104
+        case .morse:     return 1103
+        case .glass:     return 1109
+        case .bottle:    return 1131
+        case .frog:      return 1112
+        case .funk:      return 1130
+        case .hero:      return 1025
+        case .ping:      return 1052
+        case .purr:      return 1070
+        case .submarine: return 1023
+        case .blow:      return 1105
+        case .sosumi:    return 1073
+        }
+    }
+    #endif
+
     /// Play the sound once (no-op for `none`).
     func play() {
+        #if os(macOS)
         guard let name = systemName else { return }
         NSSound(named: name)?.play()
+        #elseif canImport(AudioToolbox)
+        guard let id = iOSSystemSoundID else { return }
+        AudioServicesPlaySystemSound(id)
+        #endif
     }
 }

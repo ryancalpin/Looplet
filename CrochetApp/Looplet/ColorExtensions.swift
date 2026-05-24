@@ -1,5 +1,9 @@
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#elseif canImport(AppKit)
 import AppKit
+#endif
 
 extension Color {
     /// Create a Color from a CSS hex string like "#B5547D" or "B5547D".
@@ -15,10 +19,17 @@ extension Color {
     /// Serialize the color to a CSS hex string like "#B5547D".
     /// Converts through sRGB; alpha is discarded.
     var hexString: String {
+        var rC: CGFloat = 0, gC: CGFloat = 0, bC: CGFloat = 0
+        #if canImport(UIKit)
+        var aC: CGFloat = 0
+        UIColor(self).getRed(&rC, green: &gC, blue: &bC, alpha: &aC)
+        #else
         let ns = NSColor(self).usingColorSpace(.sRGB) ?? NSColor(self)
-        let r = Int((min(max(ns.redComponent,   0), 1) * 255).rounded())
-        let g = Int((min(max(ns.greenComponent, 0), 1) * 255).rounded())
-        let b = Int((min(max(ns.blueComponent,  0), 1) * 255).rounded())
+        rC = ns.redComponent; gC = ns.greenComponent; bC = ns.blueComponent
+        #endif
+        let r = Int((min(max(rC, 0), 1) * 255).rounded())
+        let g = Int((min(max(gC, 0), 1) * 255).rounded())
+        let b = Int((min(max(bC, 0), 1) * 255).rounded())
         return String(format: "#%02X%02X%02X", r, g, b)
     }
 }

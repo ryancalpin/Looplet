@@ -1,6 +1,5 @@
 import Foundation
 import Combine
-import AppKit
 
 /// Tracks elapsed session time. Not persisted — resets on app relaunch.
 /// Owned by LoopletApp and injected via direct pass-through.
@@ -69,7 +68,7 @@ final class SessionTimer: ObservableObject {
 
     private func observeAppFocus() {
         let resign = NotificationCenter.default.addObserver(
-            forName: NSApplication.didResignActiveNotification,
+            forName: .appResignActive,
             object: nil,
             queue: .main
         ) { [weak self] _ in
@@ -77,7 +76,7 @@ final class SessionTimer: ObservableObject {
         }
 
         let activate = NotificationCenter.default.addObserver(
-            forName: NSApplication.didBecomeActiveNotification,
+            forName: .appBecomeActive,
             object: nil,
             queue: .main
         ) { [weak self] _ in

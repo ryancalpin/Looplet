@@ -38,7 +38,9 @@ struct OnboardingView: View {
             dots
             controls
         }
+        #if os(macOS)
         .frame(width: 460, height: 440)
+        #endif
         .background(Color.surface)
     }
 

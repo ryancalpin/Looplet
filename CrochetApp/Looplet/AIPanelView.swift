@@ -1,6 +1,6 @@
 import SwiftUI
 
-@available(macOS 26.0, *)
+@available(iOS 26.0, macOS 26.0, *)
 struct AIPanelView: View {
     @ObservedObject var service: PatternAIService
     let entry: PatternEntry
