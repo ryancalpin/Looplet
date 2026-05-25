@@ -154,9 +154,12 @@ struct PatternLibraryView: View {
     // MARK: - Header
 
     private var header: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "square.stack.3d.up.fill")
-                .foregroundColor(legibleAccent)
+        HStack(spacing: 9) {
+            Image("BrandIcon")
+                .resizable()
+                .interpolation(.high)
+                .frame(width: 26, height: 26)
+                .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
             Text("Library").font(.system(.headline))
             Spacer()
             if let onOpenSettings {
@@ -322,9 +325,18 @@ struct PatternLibraryView: View {
 
     private var emptyState: some View {
         VStack(spacing: 16) {
-            Image(systemName: "doc.text")
-                .font(.system(size: 36))
-                .foregroundColor(.textSecondary.opacity(0.4))
+            ZStack {
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(Color.primary.opacity(0.035))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 22, style: .continuous)
+                            .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)
+                    )
+                    .frame(width: 76, height: 76)
+                Image(systemName: "doc.text")
+                    .font(.system(size: 34))
+                    .foregroundColor(.textSecondary.opacity(0.4))
+            }
             VStack(spacing: 6) {
                 Text("No Patterns Yet")
                     .font(.headline).foregroundColor(.textSecondary)
@@ -415,6 +427,13 @@ struct PatternLibraryView: View {
         }
             .padding(.horizontal, 10).padding(.vertical, 7)
             .background(rowBackground)
+            .overlay(alignment: .leading) {
+                if isActive {
+                    Rectangle()
+                        .fill(legibleAccent)
+                        .frame(width: 2.5)
+                }
+            }
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .padding(.horizontal, 6)
             .contentShape(Rectangle())
@@ -501,11 +520,13 @@ struct PatternLibraryView: View {
 
     private func yarnRow(_ yarn: YarnEntry) -> some View {
         let isHovered = hoveredYarnID == yarn.id
-        return HStack(spacing: 10) {
+        let swatch = Color(hex: yarn.colorHex) ?? .gray
+        return HStack(spacing: 13) {
             Circle()
-                .fill(Color(hex: yarn.colorHex) ?? .gray)
-                .frame(width: 14, height: 14)
-                .overlay(Circle().strokeBorder(.white.opacity(0.2), lineWidth: 0.5))
+                .fill(swatch)
+                .frame(width: 30, height: 30)
+                .overlay(Circle().strokeBorder(.white.opacity(0.12), lineWidth: 2))
+                .shadow(color: swatch.opacity(0.45), radius: 6, x: 0, y: 2)
             VStack(alignment: .leading, spacing: 2) {
                 Text(yarn.name).font(Typo.rowTitle).foregroundColor(.textPrimary).lineLimit(1)
                 Text(yarn.yardage > 0 ? "\(yarn.weight) · \(yarn.yardage) yds" : yarn.weight)
@@ -712,6 +733,32 @@ struct AddYarnSheet: View {
     private var saveLabel: String { editing == nil ? "Add" : "Save" }
     private var canSave: Bool { !name.trimmingCharacters(in: .whitespaces).isEmpty }
 
+    /// Pill-chip weight selector (matches the design's chip picker).
+    private var weightChips: some View {
+        FlowLayout(spacing: 8) {
+            ForEach(weights, id: \.self) { w in
+                let selected = weight == w
+                Button { weight = w } label: {
+                    Text(w)
+                        .font(.system(size: 14, weight: selected ? .semibold : .regular))
+                        .foregroundColor(selected ? .white : .textSecondary)
+                        .padding(.vertical, 6).padding(.horizontal, 13)
+                        .background(
+                            selected ? Color.appAccent : Color.primary.opacity(0.06),
+                            in: Capsule()
+                        )
+                        .overlay(
+                            Capsule().strokeBorder(
+                                selected ? Color.clear : Color.primary.opacity(0.12),
+                                lineWidth: 1)
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
     var body: some View {
         #if os(iOS)
         NavigationStack {
@@ -719,10 +766,10 @@ struct AddYarnSheet: View {
                 Section {
                     TextField("Yarn name", text: $name)
                         .focused($focused)
-                    Picker("Weight", selection: $weight) {
-                        ForEach(weights, id: \.self) { Text($0).tag($0) }
-                    }
                     ColorPicker("Color", selection: $color, supportsOpacity: false)
+                }
+                Section("Weight") {
+                    weightChips
                 }
                 Section {
                     TextField("Yardage (optional)", text: $yardage)
