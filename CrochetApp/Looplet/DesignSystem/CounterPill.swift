@@ -36,8 +36,8 @@ struct CounterPill: View {
                 .accessibilityLabel("Increase \(label)")
         }
         .background(color.opacity(0.08))
-        .clipShape(RoundedRectangle(cornerRadius: 9))
-        .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(color.opacity(0.25), lineWidth: 1.5))
+        .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 13, style: .continuous).strokeBorder(color.opacity(0.18), lineWidth: 1.5))
     }
 
     private func stepButton(systemName: String, enabled: Bool, action: @escaping () -> Void) -> some View {
@@ -45,7 +45,7 @@ struct CounterPill: View {
             Image(systemName: systemName)
                 .font(.system(size: 13, weight: .semibold))
                 .frame(width: pillHeight, height: pillHeight)
-                .background(color.opacity(0.15))
+                .background(color.opacity(0.10))
                 .foregroundColor(enabled ? color : .secondary)
         }
         .buttonStyle(.plain)

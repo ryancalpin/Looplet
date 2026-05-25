@@ -141,25 +141,40 @@ struct ContentView: View {
     // MARK: - Detail column (shared)
 
     private var detailColumn: some View {
-        VStack(spacing: 0) {
-            counterArea
-            HStack(spacing: 0) {
-                PatternContentView(
+        Group {
+            if focusMode {
+                // Split-pane focus mode: a scrollable pattern pane + a solid counter
+                // panel with large vertical counter blocks (no glass overlay).
+                FocusModePane(
+                    store: store,
+                    timer: sessionTimer,
+                    entry: library.activeEntry,
                     fileURL: activeFileURL,
                     library: library,
-                    abbreviationDict: abbreviationDict
+                    abbreviationDict: abbreviationDict,
+                    onExit: { NotificationCenter.default.post(name: .toggleFocusMode, object: nil) }
                 )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                VStack(spacing: 0) {
+                    counterArea
+                    HStack(spacing: 0) {
+                        PatternContentView(
+                            fileURL: activeFileURL,
+                            library: library,
+                            abbreviationDict: abbreviationDict
+                        )
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                // macOS mounts the AI panel inline; iOS presents it as a sheet (see body).
-                #if os(macOS)
-                aiInlinePanel
-                #endif
+                        // macOS mounts the AI panel inline; iOS presents it as a sheet (see body).
+                        #if os(macOS)
+                        aiInlinePanel
+                        #endif
+                    }
+                    .animation(.spring(response: 0.3, dampingFraction: 0.8), value: showAIPanel)
+                }
             }
-            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: showAIPanel)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .overlay(alignment: .top) { focusOverlay }
     }
 
     // MARK: - Shared sub-views
@@ -175,56 +190,6 @@ struct ContentView: View {
             if let entry = library.activeEntry {
                 PatternSummaryBar(entry: entry)
             }
-        }
-    }
-
-    @ViewBuilder private var focusOverlay: some View {
-        if focusMode {
-            GlassHUD {
-                CounterPill(
-                    label: "ROW",
-                    value: store.rowCount,
-                    goal: library.activeEntry?.rowGoal,
-                    color: settings.rowColor.legible(in: colorScheme),
-                    size: settings.counterSize,
-                    onDecrement: { store.decrementRow() },
-                    onIncrement: { store.incrementRow() }
-                )
-                CounterPill(
-                    label: "STITCH",
-                    value: store.stitchCount,
-                    goal: library.activeEntry?.stitchGoal,
-                    color: settings.stitchColor.legible(in: colorScheme),
-                    size: settings.counterSize,
-                    onDecrement: { store.decrementStitch() },
-                    onIncrement: { store.incrementStitch() }
-                )
-                if library.activeEntry?.showRepeatCounter == true {
-                    CounterPill(
-                        label: "REPEAT",
-                        value: store.repeatCount,
-                        goal: nil,
-                        color: settings.repeatColor.legible(in: colorScheme),
-                        size: settings.counterSize,
-                        onDecrement: { store.decrementRepeat() },
-                        onIncrement: { store.incrementRepeat() }
-                    )
-                }
-                Divider().frame(height: 28)
-                Button {
-                    NotificationCenter.default.post(name: .toggleFocusMode, object: nil)
-                } label: {
-                    Image(systemName: "arrow.down.right.and.arrow.up.left")
-                        .font(.title3)
-                        .foregroundColor(.textSecondary)
-                        .padding(6)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .help("Exit focus mode (⌃⌘F)")
-                .accessibilityLabel("Exit focus mode")
-            }
-            .padding(.top, 12)
         }
     }
 
@@ -417,6 +382,199 @@ struct PatternSummaryBar: View {
         .foregroundColor(.textSecondary)
         .padding(.horizontal, 8).padding(.vertical, 3)
         .background(Capsule().fill(Color.surfaceSidebar))
+    }
+}
+
+// MARK: - Focus Mode (split-pane)
+
+/// Focus mode as a clean split pane (per the Looplet design): a scrollable pattern
+/// pane and a solid counter panel with large vertical counter blocks. The counter
+/// panel can flip between the bottom (thumb zone, default) and top of the screen.
+struct FocusModePane: View {
+    @ObservedObject var store: CounterStore
+    @ObservedObject var timer: SessionTimer
+    let entry: PatternEntry?
+    let fileURL: URL?
+    @ObservedObject var library: PatternLibrary
+    let abbreviationDict: [String: String]
+    let onExit: () -> Void
+
+    @ObservedObject private var settings = AppSettings.shared
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var counterAtBottom = true
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if counterAtBottom {
+                patternPane
+                separator
+                counterPanel
+            } else {
+                counterPanel
+                separator
+                patternPane
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var patternPane: some View {
+        PatternContentView(fileURL: fileURL, library: library, abbreviationDict: abbreviationDict)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var separator: some View {
+        HStack(spacing: 10) {
+            HStack(spacing: 6) {
+                Circle().fill(Color.appAccent.opacity(0.6)).frame(width: 5, height: 5)
+                Text("FOCUS MODE")
+                    .font(.system(size: 10, weight: .bold)).tracking(1.3)
+                    .foregroundColor(.textSecondary)
+            }
+            Spacer()
+            Button {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { counterAtBottom.toggle() }
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: counterAtBottom ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 10, weight: .bold))
+                    Text(counterAtBottom ? "Move Up" : "Move Down")
+                        .font(.system(size: 11, weight: .semibold))
+                }
+                .foregroundColor(Color.appAccent)
+                .padding(.vertical, 5).padding(.horizontal, 11)
+                .background(Capsule().fill(Color.appAccent.opacity(0.12)))
+                .overlay(Capsule().strokeBorder(Color.appAccent.opacity(0.25), lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            Button(action: onExit) {
+                HStack(spacing: 5) {
+                    Image(systemName: "arrow.down.right.and.arrow.up.left")
+                        .font(.system(size: 11, weight: .medium))
+                    Text("Exit").font(.system(size: 11))
+                }
+                .foregroundColor(.textSecondary)
+            }
+            .buttonStyle(.plain)
+            .help("Exit focus mode (⌃⌘F)")
+        }
+        .padding(.horizontal, 16)
+        .frame(height: 38)
+        .background(Color.surfaceSidebar)
+        .overlay(alignment: .top) { Divider().background(Color.dividerToken) }
+        .overlay(alignment: .bottom) { Divider().background(Color.dividerToken) }
+    }
+
+    private var counterPanel: some View {
+        VStack(spacing: 12) {
+            if settings.showTimer {
+                HStack(spacing: 6) {
+                    Spacer()
+                    Image(systemName: timer.isRunning ? "clock" : "pause.circle")
+                        .font(.system(size: 11, weight: .semibold)).foregroundColor(.textSecondary)
+                    Text(timer.displayString)
+                        .font(Typo.monoReadout).foregroundColor(.textSecondary)
+                        .animation(nil, value: timer.displayString)
+                }
+                .onTapGesture { timer.togglePause() }
+            }
+
+            HStack(spacing: 10) {
+                FocusCounter(label: "ROW", value: store.rowCount, goal: entry?.rowGoal,
+                             color: settings.rowColor.legible(in: colorScheme),
+                             onDecrement: { store.decrementRow() }, onIncrement: { store.incrementRow() })
+                FocusCounter(label: "STITCH", value: store.stitchCount, goal: entry?.stitchGoal,
+                             color: settings.stitchColor.legible(in: colorScheme),
+                             onDecrement: { store.decrementStitch() }, onIncrement: { store.incrementStitch() })
+                if entry?.showRepeatCounter == true {
+                    FocusCounter(label: "REPEAT", value: store.repeatCount, goal: nil,
+                                 color: settings.repeatColor.legible(in: colorScheme),
+                                 onDecrement: { store.decrementRepeat() }, onIncrement: { store.incrementRepeat() })
+                }
+            }
+            .frame(height: 200)
+
+            if let goal = entry?.rowGoal, goal > 0 {
+                rowProgress(goal: goal)
+            }
+        }
+        .padding(14)
+        .background(Color.surfaceRaised)
+    }
+
+    private func rowProgress(goal: Int) -> some View {
+        let color = settings.rowColor.legible(in: colorScheme)
+        let fraction = min(Double(store.rowCount) / Double(goal), 1.0)
+        return VStack(spacing: 6) {
+            HStack {
+                Text("Row progress").font(.system(size: 11, weight: .medium)).foregroundColor(color.opacity(0.7))
+                Spacer()
+                Text("\(store.rowCount) / \(goal)").font(.system(size: 11)).foregroundColor(color.opacity(0.7))
+            }
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(color.opacity(0.14)).frame(height: 4)
+                    Capsule().fill(color)
+                        .frame(width: geo.size.width * fraction, height: 4)
+                        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: fraction)
+                }
+            }
+            .frame(height: 4)
+        }
+    }
+}
+
+/// A tall vertical counter block for focus mode — minus on top, large numeral in the
+/// middle, and a taller plus at the bottom (incremented far more often while crocheting).
+struct FocusCounter: View {
+    let label: String
+    let value: Int
+    let goal: Int?
+    let color: Color
+    let onDecrement: () -> Void
+    let onIncrement: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Text(goal != nil ? "\(label) / \(goal!)" : label)
+                .font(.system(size: 11, weight: .bold)).tracking(1.3)
+                .foregroundColor(color)
+                .padding(.top, 11).padding(.bottom, 6)
+
+            Button(action: onDecrement) {
+                Image(systemName: "minus")
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundColor(value > 0 ? color : color.opacity(0.4))
+                    .frame(maxWidth: .infinity).frame(height: 52)
+                    .background(color.opacity(0.08))
+                    .overlay(Rectangle().fill(color.opacity(0.10)).frame(height: 1), alignment: .top)
+                    .overlay(Rectangle().fill(color.opacity(0.10)).frame(height: 1), alignment: .bottom)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(value == 0)
+
+            Text("\(value)")
+                .font(.system(size: 52, weight: .bold)).monospacedDigit()
+                .foregroundColor(color)
+                .contentTransition(.numericText())
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .animation(.spring(response: 0.25, dampingFraction: 0.7), value: value)
+
+            Button(action: onIncrement) {
+                Image(systemName: "plus")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundColor(color)
+                    .frame(maxWidth: .infinity).frame(height: 68)
+                    .background(color.opacity(0.11))
+                    .overlay(Rectangle().fill(color.opacity(0.13)).frame(height: 1), alignment: .top)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+        .background(color.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(color.opacity(0.18), lineWidth: 1.5))
     }
 }
 
