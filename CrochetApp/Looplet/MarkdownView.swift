@@ -506,10 +506,11 @@ final class MarkdownWebCoordinator: NSObject, WKNavigationDelegate {
                 }, {passive: true});
                 block.addEventListener('touchend', function(e) {
                   if (touchTapBlock !== block) return;
-                  // Don't trigger when the user tapped an existing note div or an
-                  // open editor — those have their own handlers.
+                  // Don't trigger when the user tapped an existing note div, an open
+                  // editor, or an abbreviation term — those have their own handlers.
                   if (e.target.closest('[id^="ann-note-"]') ||
-                      e.target.closest('[id^="ann-editor-"]')) return;
+                      e.target.closest('[id^="ann-editor-"]') ||
+                      e.target.closest('[data-abbr]')) return;
                   // Don't trigger on a multi-touch gesture (pinch/scroll).
                   if (e.changedTouches.length !== 1) return;
                   e.preventDefault();
@@ -642,15 +643,26 @@ final class MarkdownWebCoordinator: NSObject, WKNavigationDelegate {
                             var span=document.createElement('span');
                             var meaning=abbrevs[m[0]]||abbrevs[m[0].toLowerCase()]||m[0];
                             span.textContent=m[0];
+                            span.setAttribute('data-abbr','1');
                             span.style.cssText='border-bottom:1px dotted currentColor;cursor:help;';
                             span.addEventListener('mouseover',function(ev){showTip(ev,meaning);});
                             span.addEventListener('mouseout',hideTip);
-                            // iOS: tap an abbreviation to see its meaning for ~3 seconds.
-                            span.addEventListener('touchstart',function(ev){
-                                ev.preventDefault();
-                                showTip(ev.touches[0],meaning);
-                                setTimeout(hideTip,3000);
-                            },{passive:false});
+                            // Tap (iOS) or click an abbreviation to see its meaning for ~3s.
+                            // Falls back to the element's own position when the event has no
+                            // touch point (synthesized events), so the tip is always placed.
+                            (function(s,def){
+                                function reveal(ev){
+                                    ev.preventDefault();
+                                    if(ev.stopPropagation)ev.stopPropagation();
+                                    var t=ev.touches&&ev.touches[0];
+                                    var pt=t||(function(){var r=s.getBoundingClientRect();return{clientX:r.left+r.width/2,clientY:r.top};})();
+                                    showTip(pt,def);
+                                    clearTimeout(s.__tipTimer);
+                                    s.__tipTimer=setTimeout(hideTip,3000);
+                                }
+                                s.addEventListener('touchstart',reveal,{passive:false});
+                                s.addEventListener('click',reveal);
+                            })(span,meaning);
                             frag.appendChild(span);
                             last=m.index+m[0].length;
                         }

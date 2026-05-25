@@ -39,7 +39,7 @@ struct ContentView: View {
             }
             .onChangeValue(of: showAIPanel) { newValue in UserDefaults.standard.aiPanelOpen = newValue }
             .onChangeEffect(of: library.activeEntryID) {
-                abbreviationDict = [:]
+                syncAbbreviationDict()
                 reloadPatternText()
                 #if os(iOS)
                 // NavigationSplitView ignores columnVisibility in compact (documented).
@@ -55,11 +55,18 @@ struct ContentView: View {
                     AIInsights.ensure(for: id, in: library)
                 }
             }
+            // When abbreviations finish generating (or load from cache), refresh the
+            // in-pattern tooltip dictionary so the dotted-underline tooltips appear
+            // without needing to open the AI panel — on iOS and macOS alike.
+            .onChangeEffect(of: library.activeEntry?.aiAbbreviations?.entries.count ?? 0) {
+                syncAbbreviationDict()
+            }
             .onAppear {
                 #if os(macOS)
                 NSApp.mainWindow?.title = "Looplet"
                 #endif
                 reloadPatternText()
+                syncAbbreviationDict()
                 showOnboarding = !settings.hasSeenOnboarding
                 if #available(iOS 26.0, macOS 26.0, *), proStore.isPro, let id = library.activeEntryID {
                     AIInsights.ensure(for: id, in: library)
@@ -322,6 +329,19 @@ struct ContentView: View {
     }
 
     /// Read the active pattern's text once, with a balanced security scope, and cache it.
+    /// Populate the in-pattern abbreviation tooltips from the active entry's cached AI
+    /// abbreviations so the dotted-underline stitch tooltips work without opening the AI
+    /// panel (matching the macOS inline experience). Clears when none are available.
+    private func syncAbbreviationDict() {
+        if let abbr = library.activeEntry?.aiAbbreviations, !abbr.entries.isEmpty {
+            let dict = Dictionary(abbr.entries.map { ($0.abbreviation, $0.meaning) },
+                                  uniquingKeysWith: { first, _ in first })
+            if dict != abbreviationDict { abbreviationDict = dict }
+        } else if !abbreviationDict.isEmpty {
+            abbreviationDict = [:]
+        }
+    }
+
     private func reloadPatternText() {
         guard let entry = library.activeEntry, let url = entry.resolveURL() else {
             cachedPatternText = nil; cachedPatternTextID = nil; return
