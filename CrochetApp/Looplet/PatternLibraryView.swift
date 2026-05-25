@@ -149,6 +149,13 @@ struct PatternLibraryView: View {
         .sheet(item: $renameTarget) { entry in
             RenameSheet(entry: entry, text: $renameText, library: library)
         }
+        #if os(iOS)
+        // Settings (leading) and Add (trailing) flank the "Looplet" nav title.
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) { settingsButton }
+            ToolbarItem(placement: .topBarTrailing) { addButton }
+        }
+        #endif
     }
 
     // MARK: - Header
@@ -162,29 +169,44 @@ struct PatternLibraryView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
             Text("Library").font(.system(.headline))
             Spacer()
-            if let onOpenSettings {
-                Button {
-                    onOpenSettings()
-                } label: {
-                    Image(systemName: "gearshape").font(.system(.body, weight: .medium))
-                }
-                .buttonStyle(.plain).foregroundColor(legibleAccent)
-                .help("Settings")
-                .accessibilityLabel("Settings")
-            }
-            Button {
-                if sidebarTab == .yarn { showAddYarn = true }
-                else if canImport { showFilePicker = true }
-                else { showPaywall = true }
-            } label: {
-                Image(systemName: "plus").font(.system(.body, weight: .medium))
-            }
-            .buttonStyle(.plain).foregroundColor(legibleAccent)
-            .help(sidebarTab == .yarn ? "Add yarn to stash" : "Add a pattern file")
-            .accessibilityLabel(sidebarTab == .yarn ? "Add yarn" : "Add pattern")
+            // iOS puts the gear (leading) and ＋ (trailing) in the navigation bar
+            // around the "Looplet" title — see `.toolbar` on the body. macOS has no
+            // nav bar in this column, so keep ＋ in the header there.
+            #if os(macOS)
+            addButton
+            #endif
         }
         .padding(.horizontal, 12).padding(.vertical, 10)
         .background(Color.surfaceSidebar)
+    }
+
+    /// Context-aware add button: imports a pattern on the Patterns tab, adds yarn on
+    /// the Yarn tab, and shows the paywall when the free import limit is hit.
+    private var addButton: some View {
+        Button {
+            if sidebarTab == .yarn { showAddYarn = true }
+            else if canImport { showFilePicker = true }
+            else { showPaywall = true }
+        } label: {
+            Image(systemName: "plus").font(.system(.body, weight: .medium))
+        }
+        .buttonStyle(.plain).foregroundColor(legibleAccent)
+        .help(sidebarTab == .yarn ? "Add yarn to stash" : "Add a pattern file")
+        .accessibilityLabel(sidebarTab == .yarn ? "Add yarn" : "Add pattern")
+    }
+
+    @ViewBuilder
+    private var settingsButton: some View {
+        if let onOpenSettings {
+            Button {
+                onOpenSettings()
+            } label: {
+                Image(systemName: "gearshape").font(.system(.body, weight: .medium))
+            }
+            .buttonStyle(.plain).foregroundColor(legibleAccent)
+            .help("Settings")
+            .accessibilityLabel("Settings")
+        }
     }
 
     // MARK: - Tab picker
