@@ -21,6 +21,7 @@ struct ContentView: View {
 
     #if os(iOS)
     @State private var showSettings = false
+    @State private var showPatternDetail = false   // drives compact iPhone push-navigation
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     #endif
@@ -36,13 +37,16 @@ struct ContentView: View {
             .onReceive(NotificationCenter.default.publisher(for: .toggleFocusMode)) { _ in
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { focusMode.toggle() }
             }
-            .onChange(of: showAIPanel) { UserDefaults.standard.aiPanelOpen = $0 }
-            .onChange(of: library.activeEntryID) { _ in
+            .onChangeValue(of: showAIPanel) { newValue in UserDefaults.standard.aiPanelOpen = newValue }
+            .onChangeEffect(of: library.activeEntryID) {
                 abbreviationDict = [:]
                 reloadPatternText()
                 #if os(iOS)
-                // On iPhone, selecting a pattern should reveal the detail column.
-                if horizontalSizeClass == .compact { columnVisibility = .detailOnly }
+                // NavigationSplitView ignores columnVisibility in compact (documented).
+                // Use a navigationDestination push instead for iPhone.
+                if horizontalSizeClass == .compact {
+                    showPatternDetail = library.activeEntryID != nil
+                }
                 #endif
                 // Kick off (or backfill) AI insight generation as soon as a pattern is
                 // imported or opened. Idempotent + persisted, so this never re-bursts.
@@ -98,7 +102,27 @@ struct ContentView: View {
             PatternLibraryView(library: library, store: store)
                 .navigationTitle("Library")
                 .navigationBarTitleDisplayMode(.inline)
+                // Compact (iPhone): push the detail column as a standard navigation push.
+                // navigationDestination IS respected in compact; columnVisibility is not.
+                .navigationDestination(isPresented: $showPatternDetail) {
+                    detailColumn
+                        .navigationTitle(library.activeEntry?.displayName ?? "Looplet")
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .topBarTrailing) {
+                                Button { showSettings = true } label: {
+                                    Image(systemName: "gearshape")
+                                }
+                                .accessibilityLabel("Settings")
+                            }
+                        }
+                        .onDisappear {
+                            // Keep activeEntryID in sync when user taps the back button.
+                            if !showPatternDetail { library.activeEntryID = nil }
+                        }
+                }
         } detail: {
+            // Regular width (iPad / Mac Catalyst): standard split-view detail pane.
             detailColumn
                 .navigationTitle(library.activeEntry?.displayName ?? "Looplet")
                 .navigationBarTitleDisplayMode(.inline)

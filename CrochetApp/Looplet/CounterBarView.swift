@@ -361,7 +361,9 @@ private struct GoalInputPopover: View {
             Text(title).font(.headline)
             TextField(currentGoal.map { "\($0)" } ?? "e.g. 60", text: $inputText)
                 .textFieldStyle(.roundedBorder)
+                #if os(macOS)
                 .frame(width: 120)
+                #endif
                 .focused($focused)
                 .onSubmit { confirm() }
             HStack {
@@ -376,7 +378,9 @@ private struct GoalInputPopover: View {
             }
         }
         .padding(16)
+        #if os(macOS)
         .frame(width: 200)
+        #endif
         .onAppear { focused = true }
     }
 

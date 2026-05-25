@@ -9,7 +9,7 @@ import AppKit
 // MARK: - Simple Markdown to HTML Converter
 struct MarkdownConverter {
     static func convert(_ markdown: String) -> String {
-        var lines = markdown.components(separatedBy: "\n")
+        let lines = markdown.components(separatedBy: "\n")
         var html = ""
         var inCodeBlock = false
         var inOrderedList = false
@@ -491,11 +491,41 @@ final class MarkdownWebCoordinator: NSObject, WKNavigationDelegate {
                 openEditor(hoveredBlock, hoveredKey);
               });
 
+              // iOS touch: tap any paragraph/list-item to add or edit a note.
+              // We only open the editor when the tap didn't land on an existing note
+              // element or an already-open editor, so the existing click handler on
+              // note elements (tap-to-edit) still works without double-firing.
+              var touchTapBlock = null, touchTapKey = null;
+              blocks.forEach(function(block) {
+                block.addEventListener('touchstart', function(e) {
+                  // Record which block was touched so touchend knows.
+                  touchTapBlock = block;
+                  touchTapKey = fingerprint(block.textContent);
+                }, {passive: true});
+                block.addEventListener('touchend', function(e) {
+                  if (touchTapBlock !== block) return;
+                  // Don't trigger when the user tapped an existing note div or an
+                  // open editor — those have their own handlers.
+                  if (e.target.closest('[id^="ann-note-"]') ||
+                      e.target.closest('[id^="ann-editor-"]')) return;
+                  // Don't trigger on a multi-touch gesture (pinch/scroll).
+                  if (e.changedTouches.length !== 1) return;
+                  e.preventDefault();
+                  hoveredBlock = block;
+                  hoveredKey = touchTapKey;
+                  openEditor(block, touchTapKey, existingNotes[touchTapKey]);
+                });
+              });
+
               // Click outside editor to dismiss
               document.addEventListener('click', function(e) {
                 var editor = document.querySelector('[id^="ann-editor-"]');
                 if (editor && !editor.contains(e.target)) { editor.remove(); }
               });
+              document.addEventListener('touchend', function(e) {
+                var editor = document.querySelector('[id^="ann-editor-"]');
+                if (editor && !editor.contains(e.target)) { editor.remove(); }
+              }, {passive: true});
 
               function insertNoteElement(block, key, text) {
                 var existing = document.getElementById(noteId(key));
@@ -613,6 +643,12 @@ final class MarkdownWebCoordinator: NSObject, WKNavigationDelegate {
                             span.style.cssText='border-bottom:1px dotted currentColor;cursor:help;';
                             span.addEventListener('mouseover',function(ev){showTip(ev,meaning);});
                             span.addEventListener('mouseout',hideTip);
+                            // iOS: tap an abbreviation to see its meaning for ~3 seconds.
+                            span.addEventListener('touchstart',function(ev){
+                                ev.preventDefault();
+                                showTip(ev.touches[0],meaning);
+                                setTimeout(hideTip,3000);
+                            },{passive:false});
                             frag.appendChild(span);
                             last=m.index+m[0].length;
                         }
@@ -681,10 +717,10 @@ struct MarkdownView: View {
                 )
             }
         }
-        .onChange(of: fileURL) { newURL in
+        .onChangeValue(of: fileURL) { newURL in
             loadFile(url: newURL)
         }
-        .onChange(of: settings.appTheme) { _ in
+        .onChangeEffect(of: settings.appTheme) {
             // Regenerate HTML so the document palette reflects the new theme.
             reloadHTML()
         }

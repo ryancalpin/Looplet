@@ -6,40 +6,106 @@ struct SettingsView: View {
     @State private var showPaywall = false
     @Environment(\.dismiss) private var dismiss
 
+    // iOS only: which section is shown (replaces TabView, broken in sheets on iOS 26).
+    #if os(iOS)
+    @State private var settingsSection = 0
+    #endif
+
     var body: some View {
         #if os(macOS)
         settingsTabs
             .frame(width: 520, height: 460)
             .sheet(isPresented: $showPaywall) { PaywallView() }
         #else
-        NavigationStack {
-            settingsTabs
-                .navigationTitle("Settings")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Done") { dismiss() }
-                    }
+        // iOS 26 regression: TabView inside any sheet container gives tab content
+        // height=0 (confirmed via AX snapshot). Avoid TabView entirely on iOS.
+        // Use a plain VStack with a manual title bar + segmented icon picker instead.
+        VStack(spacing: 0) {
+            // ── Title bar ──────────────────────────────────────────────────
+            ZStack {
+                Text("Settings").font(.headline)
+                HStack {
+                    Spacer()
+                    Button("Done") { dismiss() }.bold()
                 }
+            }
+            .padding(.horizontal, 20)
+            .frame(height: 56)
+            .overlay(alignment: .bottom) { Divider() }
+
+            // ── Section picker ─────────────────────────────────────────────
+            Picker("Settings section", selection: $settingsSection) {
+                Image(systemName: "list.number").tag(0)
+                Image(systemName: "sparkles").tag(1)
+                Image(systemName: "paintbrush").tag(2)
+                Image(systemName: "info.circle").tag(3)
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(Color(UIColor.systemGroupedBackground))
+
+            Divider()
+
+            // ── Selected section content ────────────────────────────────────
+            // Each tab is a Form.formStyle(.grouped) — a List-backed view.
+            // Lists collapse to height=0 inside ScrollView, so we show the
+            // Form directly and let it fill + scroll within its own frame.
+            Group {
+                switch settingsSection {
+                case 1:  paceTab
+                case 2:  appearanceTab
+                case 3:  aboutTab
+                default: countingTab
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .sheet(isPresented: $showPaywall) { PaywallView() }
         #endif
     }
 
+    // iOS 26 changed TabView rendering: the old `.tabItem` API gives height=0 content
+    // when TabView is inside NavigationStack inside a Sheet. The new Tab {} API (iOS 18+)
+    // fixes this. The old API is kept as a fallback for iOS 17 devices.
+    @ViewBuilder
     private var settingsTabs: some View {
-        TabView {
-            ScrollView { countingTab.padding(.bottom, 16) }
-                .tabItem { Label("Counting", systemImage: "list.number") }
-            ScrollView { paceTab.padding(.bottom, 16) }
-                .tabItem { Label("Pace & AI", systemImage: "sparkles") }
-            ScrollView { appearanceTab.padding(.bottom, 16) }
-                .tabItem { Label("Appearance", systemImage: "paintbrush") }
-            ScrollView { aboutTab.padding(.bottom, 16) }
-                .tabItem { Label("About", systemImage: "info.circle") }
-            #if os(macOS)
-            ScrollView { shortcutsTab.padding(.bottom, 16) }
-                .tabItem { Label("Shortcuts", systemImage: "keyboard") }
-            #endif
+        if #available(iOS 18.0, macOS 15.0, *) {
+            TabView {
+                Tab("Counting", systemImage: "list.number") {
+                    ScrollView { countingTab.padding(.bottom, 16) }
+                }
+                Tab("Pace & AI", systemImage: "sparkles") {
+                    ScrollView { paceTab.padding(.bottom, 16) }
+                }
+                Tab("Appearance", systemImage: "paintbrush") {
+                    ScrollView { appearanceTab.padding(.bottom, 16) }
+                }
+                Tab("About", systemImage: "info.circle") {
+                    ScrollView { aboutTab.padding(.bottom, 16) }
+                }
+                #if os(macOS)
+                Tab("Shortcuts", systemImage: "keyboard") {
+                    ScrollView { shortcutsTab.padding(.bottom, 16) }
+                }
+                #endif
+            }
+        } else {
+            // iOS 17 / macOS 13-14 fallback
+            TabView {
+                ScrollView { countingTab.padding(.bottom, 16) }
+                    .tabItem { Label("Counting", systemImage: "list.number") }
+                ScrollView { paceTab.padding(.bottom, 16) }
+                    .tabItem { Label("Pace & AI", systemImage: "sparkles") }
+                ScrollView { appearanceTab.padding(.bottom, 16) }
+                    .tabItem { Label("Appearance", systemImage: "paintbrush") }
+                ScrollView { aboutTab.padding(.bottom, 16) }
+                    .tabItem { Label("About", systemImage: "info.circle") }
+                #if os(macOS)
+                ScrollView { shortcutsTab.padding(.bottom, 16) }
+                    .tabItem { Label("Shortcuts", systemImage: "keyboard") }
+                #endif
+            }
         }
     }
 

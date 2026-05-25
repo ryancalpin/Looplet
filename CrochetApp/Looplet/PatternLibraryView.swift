@@ -582,7 +582,10 @@ struct AddTagSheet: View {
                 Button("Add") { save() }.buttonStyle(.borderedProminent).disabled(tagText.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
-        .padding(20).frame(width: 300)
+        .padding(20)
+        #if os(macOS)
+        .frame(width: 300)
+        #endif
         .onAppear { focused = true }
     }
 
@@ -614,7 +617,10 @@ struct RenameSheet: View {
                     .disabled(text.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
-        .padding(20).frame(width: 300)
+        .padding(20)
+        #if os(macOS)
+        .frame(width: 300)
+        #endif
         .onAppear { focused = true }
     }
 
@@ -666,7 +672,10 @@ struct AddYarnSheet: View {
                     .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
-        .padding(20).frame(width: 320)
+        .padding(20)
+        #if os(macOS)
+        .frame(width: 320)
+        #endif
         .onAppear { focused = true }
     }
 
