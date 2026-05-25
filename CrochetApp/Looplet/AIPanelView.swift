@@ -69,13 +69,28 @@ struct AIPanelView: View {
     // MARK: - Header
 
     private var header: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "sparkles").foregroundColor(Color.appAccent)
-            Text("AI Assistant").font(.system(.headline))
+        HStack(spacing: 9) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .fill(Color.appAccent.opacity(0.12))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                            .strokeBorder(Color.appAccent.opacity(0.25), lineWidth: 1)
+                    )
+                    .frame(width: 30, height: 30)
+                Image(systemName: "sparkles")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(Color.appAccent)
+            }
+            Text("AI Assistant").font(.system(size: 17, weight: .semibold))
             Spacer()
             Button { showAIPanel = false } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .foregroundColor(.textSecondary).font(.title3)
+                ZStack {
+                    Circle().fill(Color.primary.opacity(0.07)).frame(width: 28, height: 28)
+                    Image(systemName: "xmark")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.textSecondary)
+                }
             }
             .buttonStyle(.plain).help("Close AI panel")
             .accessibilityLabel("Close AI panel")

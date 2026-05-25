@@ -22,25 +22,14 @@ struct PatternQAView: View {
         VStack(alignment: .leading, spacing: 8) {
             if !history.isEmpty {
                 ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 10) {
+                    LazyVStack(alignment: .leading, spacing: 14) {
                         ForEach(history) { pair in
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(pair.question)
-                                    .font(Typo.bodyText.weight(.semibold))
-                                    .foregroundColor(.textPrimary)
-                                Text(pair.answer)
-                                    .font(Typo.bodyText)
-                                    .foregroundColor(.textSecondary)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
-                            .padding(10)
-                            .background(Color.surface)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            qaThread(pair)
                         }
                     }
                     .padding(.bottom, 4)
                 }
-                .frame(maxHeight: 200)
+                .frame(maxHeight: 240)
             }
 
             if let error = errorMessage {
@@ -49,35 +38,90 @@ struct PatternQAView: View {
                     .foregroundColor(.red)
             }
 
-            HStack(spacing: 8) {
-                TextField("Ask anything about this pattern…", text: $question)
-                    .textFieldStyle(.plain)
-                    .font(Typo.bodyText)
-                    .padding(8)
-                    .background(Color.surface)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .onSubmit { askQuestion() }
-                    .disabled(isAsking)
-
-                if isAsking {
-                    ProgressView()
-                        .scaleEffect(0.6)
-                        .frame(width: 20, height: 20)
-                } else {
-                    Button {
-                        askQuestion()
-                    } label: {
-                        Image(systemName: "arrow.up.circle.fill")
-                            .font(.system(size: 20))
-                            .foregroundColor(question.isEmpty ? .secondary : Color.appAccent)
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(question.isEmpty)
-                    .accessibilityLabel("Send question")
-                }
-            }
+            askInput
         }
         .padding(.bottom, 4)
+    }
+
+    // MARK: - Q&A chat bubbles
+
+    @ViewBuilder
+    private func qaThread(_ pair: QAPair) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            // User question — accent bubble, right-aligned.
+            HStack {
+                Spacer(minLength: 44)
+                Text(pair.question)
+                    .font(Typo.bodyText)
+                    .foregroundColor(.white)
+                    .padding(.vertical, 10).padding(.horizontal, 14)
+                    .background(Color.appAccent)
+                    .clipShape(UnevenRoundedRectangle(
+                        topLeadingRadius: 18, bottomLeadingRadius: 18,
+                        bottomTrailingRadius: 4, topTrailingRadius: 18))
+            }
+            // AI answer — avatar + bordered bubble, left-aligned.
+            HStack(alignment: .top, spacing: 8) {
+                ZStack {
+                    Circle().fill(Color.appAccent.opacity(0.12))
+                        .overlay(Circle().strokeBorder(Color.appAccent.opacity(0.25), lineWidth: 1))
+                        .frame(width: 26, height: 26)
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 11, weight: .semibold)).foregroundColor(Color.appAccent)
+                }
+                Text(pair.answer)
+                    .font(Typo.bodyText)
+                    .foregroundColor(.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.vertical, 11).padding(.horizontal, 14)
+                    .background(Color.surface)
+                    .clipShape(UnevenRoundedRectangle(
+                        topLeadingRadius: 18, bottomLeadingRadius: 4,
+                        bottomTrailingRadius: 18, topTrailingRadius: 18))
+                    .overlay(
+                        UnevenRoundedRectangle(
+                            topLeadingRadius: 18, bottomLeadingRadius: 4,
+                            bottomTrailingRadius: 18, topTrailingRadius: 18)
+                            .strokeBorder(Color.dividerToken, lineWidth: 0.5))
+                Spacer(minLength: 0)
+            }
+        }
+    }
+
+    // MARK: - Ask input
+
+    private var askInput: some View {
+        HStack(spacing: 10) {
+            TextField(history.isEmpty ? "Ask anything about this pattern…" : "Ask a follow-up…", text: $question)
+                .textFieldStyle(.plain)
+                .font(Typo.bodyText)
+                .onSubmit { askQuestion() }
+                .disabled(isAsking)
+
+            if isAsking {
+                ProgressView().scaleEffect(0.6).frame(width: 28, height: 28)
+            } else {
+                Button { askQuestion() } label: {
+                    ZStack {
+                        Circle()
+                            .fill(question.isEmpty ? Color.appAccent.opacity(0.25) : Color.appAccent)
+                            .frame(width: 28, height: 28)
+                        Image(systemName: "arrow.up")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(question.isEmpty ? Color.appAccent.opacity(0.6) : .white)
+                    }
+                }
+                .buttonStyle(.plain)
+                .disabled(question.isEmpty)
+                .accessibilityLabel("Send question")
+            }
+        }
+        .padding(.vertical, 10).padding(.horizontal, 14)
+        .background(Color.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(Color.appAccent.opacity(0.25), lineWidth: 1))
     }
 
     private func askQuestion() {
