@@ -115,14 +115,8 @@ struct ContentView: View {
                     detailColumn
                         .navigationTitle(library.activeEntry?.displayName ?? "Looplet")
                         .navigationBarTitleDisplayMode(.inline)
-                        .toolbar {
-                            ToolbarItem(placement: .topBarTrailing) {
-                                Button { showSettings = true } label: {
-                                    Image(systemName: "gearshape")
-                                }
-                                .accessibilityLabel("Settings")
-                            }
-                        }
+                        // The pattern's actions live in an AI-glyph menu in the nav bar,
+                        // supplied by CounterBarView (compact) — no gear here.
                         .onDisappear {
                             // Keep activeEntryID in sync when user taps the back button.
                             if !showPatternDetail { library.activeEntryID = nil }

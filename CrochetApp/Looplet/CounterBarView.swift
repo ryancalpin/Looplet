@@ -10,6 +10,9 @@ struct CounterBarView: View {
     @ObservedObject private var settings = AppSettings.shared
 
     @Environment(\.colorScheme) private var colorScheme
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var hSizeClass
+    #endif
 
     @State private var showRowGoalPopover    = false
     @State private var showStitchGoalPopover = false
@@ -26,15 +29,13 @@ struct CounterBarView: View {
             let compact = geo.size.width < compactBreakpoint
             HStack(spacing: 12) {
                 if compact {
-                    // Center the counter pills, balancing the trailing ⋯ with an
-                    // equal-width leading spacer so they sit dead-center.
-                    Color.clear.frame(width: 36, height: 1)
-                    Spacer(minLength: 4)
+                    // Compact (iPhone): just the centered counter pills. The actions
+                    // menu lives in the nav bar (AI-glyph button, see .toolbar below).
+                    Spacer(minLength: 8)
                     rowPill
                     stitchPill
                     if entry?.showRepeatCounter == true { repeatPill }
-                    Spacer(minLength: 4)
-                    overflowMenu
+                    Spacer(minLength: 8)
                 } else {
                     rowPill
                     stitchPill
@@ -89,6 +90,15 @@ struct CounterBarView: View {
         } message: {
             Text("Repeat count will be set to 0.")
         }
+        #if os(iOS)
+        // Compact (iPhone): host the actions menu in the navigation bar as an
+        // AI-glyph button (replaces the old gear + the inline ⋯).
+        .toolbar {
+            if hSizeClass == .compact {
+                ToolbarItem(placement: .topBarTrailing) { patternMenu }
+            }
+        }
+        #endif
     }
 
     private var pillHeight: CGFloat { settings.counterSize.pillHeight }
@@ -318,7 +328,7 @@ struct CounterBarView: View {
 
     // MARK: - Overflow menu (compact)
 
-    private var overflowMenu: some View {
+    private var patternMenu: some View {
         Menu {
             Label(timer.displayString, systemImage: "timer")
 
@@ -362,14 +372,11 @@ struct CounterBarView: View {
                 }
             }
         } label: {
-            Image(systemName: "ellipsis.circle")
-                .font(.title3)
-                .foregroundColor(.textSecondary)
+            Image(systemName: "sparkles")
+                .font(.system(.body, weight: .semibold))
+                .foregroundColor(Color.appAccent)
         }
-        #if os(macOS)
-        .menuStyle(.borderlessButton)
-        #endif
-        .fixedSize()
+        .accessibilityLabel("AI and pattern actions")
     }
 }
 
